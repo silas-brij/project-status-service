@@ -4,10 +4,11 @@ import { format, isSameMonth, parseISO, startOfMonth } from 'date-fns'
 import { Calendar } from '../../components/Calendar'
 import { ErrorBox } from '../../components/Feedback'
 import { Field } from '../../components/Field'
+import { FullView } from '../../components/FullView'
 import { Markdown } from '../../components/Markdown'
 import { MarkdownEditor } from '../../components/MarkdownEditor'
 import { Modal } from '../../components/Modal'
-import { Loading, Skeleton } from '../../components/Skeleton'
+import { Loading, MarkdownSkeleton, Skeleton } from '../../components/Skeleton'
 import * as api from '../../lib/api'
 import { cx, downloadText, errorMessage, formatDate, isISODate, plural, todayISO } from '../../lib/format'
 import {
@@ -22,7 +23,7 @@ import {
   parseAttendees,
 } from '../../lib/meetings'
 import { sprintForDate } from '../../lib/sprints'
-import type { Meeting, MeetingInput, Project } from '../../lib/types'
+import type { Meeting, MeetingInput, MeetingSummary, Project } from '../../lib/types'
 import { useAsync } from '../../lib/useAsync'
 import { useCalendarMonth } from '../../lib/useCalendarMonth'
 import { DateListSkeleton, MeetingCardsSkeleton } from '../skeletons'
@@ -63,6 +64,26 @@ export function MeetingsTab() {
       p.set('date', date)
       return p
     })
+
+  // Full view of one meeting is part of the URL (`&full=<meeting id>`).
+  const fullId = params.get('full')
+  const fullIndex = fullId ? all.findIndex((m) => m.id === fullId) : -1
+  const openFull = (m: MeetingSummary) =>
+    setParams((prev) => {
+      const p = new URLSearchParams(prev)
+      p.set('date', m.date)
+      p.set('full', m.id)
+      return p
+    })
+  const closeFull = () =>
+    setParams(
+      (prev) => {
+        const p = new URLSearchParams(prev)
+        p.delete('full')
+        return p
+      },
+      { replace: true },
+    )
 
   function refresh() {
     meetings.reload()
@@ -177,11 +198,31 @@ export function MeetingsTab() {
             </div>
           ) : (
             day.data.map((m) => (
-              <MeetingCard key={m.id} meeting={m} project={project} onEdit={() => setEditing({ meeting: m })} onDelete={() => remove(m)} />
+              <MeetingCard
+                key={m.id}
+                meeting={m}
+                project={project}
+                onFullView={() => openFull(m)}
+                onEdit={() => setEditing({ meeting: m })}
+                onDelete={() => remove(m)}
+              />
             ))
           )}
         </section>
       </div>
+
+      {fullId && (
+        <MeetingFullView
+          project={project}
+          meeting={day.data?.find((m) => m.id === fullId)}
+          loading={!day.data && !day.error}
+          prev={fullIndex > 0 ? all[fullIndex - 1] : undefined}
+          next={fullIndex >= 0 ? all[fullIndex + 1] : undefined}
+          onOpen={openFull}
+          onClose={closeFull}
+          onEdit={(m) => setEditing({ meeting: m })}
+        />
+      )}
 
       {editing && (
         <MeetingFormModal
@@ -202,38 +243,54 @@ export function MeetingsTab() {
 
 // ---------------------------------------------------------------------------
 
+function Location({ location }: { location: string }) {
+  return isLink(location) ? (
+    <a href={location} target="_blank" rel="noreferrer">
+      {linkLabel(location)}
+    </a>
+  ) : (
+    <span>{location}</span>
+  )
+}
+
+function Attendees({ names }: { names: string[] }) {
+  if (names.length === 0) return null
+  return (
+    <ul className="attendees" aria-label="Attendees">
+      {names.map((name) => (
+        <li key={name}>{name}</li>
+      ))}
+    </ul>
+  )
+}
+
+const notesOf = (m: Meeting) => (m.notes.trim() ? <Markdown>{m.notes}</Markdown> : <p className="muted">No notes yet.</p>)
+
 interface MeetingCardProps {
   meeting: Meeting
   project: Project
+  onFullView: () => void
   onEdit: () => void
   onDelete: () => void
 }
 
-function MeetingCard({ meeting: m, project, onEdit, onDelete }: MeetingCardProps) {
+function MeetingCard({ meeting: m, project, onFullView, onEdit, onDelete }: MeetingCardProps) {
   return (
     <article className="card meeting-card">
-      <header>
-        <h3 className="meeting-title">{m.title}</h3>
-        <div className="meeting-meta">
-          <span>{meetingTime(m) ?? 'No time set'}</span>
-          {m.location &&
-            (isLink(m.location) ? (
-              <a href={m.location} target="_blank" rel="noreferrer">
-                {linkLabel(m.location)}
-              </a>
-            ) : (
-              <span>{m.location}</span>
-            ))}
+      <header className="meeting-card-head">
+        <div className="min-w-0">
+          <h3 className="meeting-title">{m.title}</h3>
+          <div className="meeting-meta">
+            <span>{meetingTime(m) ?? 'No time set'}</span>
+            {m.location && <Location location={m.location} />}
+          </div>
         </div>
+        <button type="button" className="btn btn-sm" onClick={onFullView} title="Read in a full-window view">
+          Full view
+        </button>
       </header>
-      {m.attendees.length > 0 && (
-        <ul className="attendees" aria-label="Attendees">
-          {m.attendees.map((name) => (
-            <li key={name}>{name}</li>
-          ))}
-        </ul>
-      )}
-      {m.notes.trim() ? <Markdown>{m.notes}</Markdown> : <p className="muted">No notes yet.</p>}
+      <Attendees names={m.attendees} />
+      {notesOf(m)}
       <footer className="standup-day-footer">
         <span className="muted small">Last edited {format(parseISO(m.updated_at), 'MMM d, HH:mm')}</span>
         <div className="spacer" />
@@ -248,6 +305,91 @@ function MeetingCard({ meeting: m, project, onEdit, onDelete }: MeetingCardProps
         </button>
       </footer>
     </article>
+  )
+}
+
+// ---------------------------------------------------------------------------
+
+interface MeetingFullViewProps {
+  project: Project
+  /** Undefined while loading, or when the meeting no longer exists. */
+  meeting: Meeting | undefined
+  loading: boolean
+  prev?: MeetingSummary
+  next?: MeetingSummary
+  onOpen: (meeting: MeetingSummary) => void
+  onClose: () => void
+  onEdit: (meeting: Meeting) => void
+}
+
+function MeetingFullView({ project, meeting: m, loading, prev, next, onOpen, onClose, onEdit }: MeetingFullViewProps) {
+  const time = m && meetingTime(m)
+  return (
+    <FullView
+      label={m ? `Meeting, ${m.title}` : 'Meeting'}
+      itemName="meeting"
+      accent={project.color}
+      context={
+        <>
+          <span className="color-dot" />
+          <span className="truncate">{project.name} · Meeting</span>
+        </>
+      }
+      onClose={onClose}
+      onPrev={prev ? () => onOpen(prev) : undefined}
+      onNext={next ? () => onOpen(next) : undefined}
+      actions={
+        m && (
+          <>
+            <button type="button" className="btn btn-sm" onClick={() => downloadText(meetingFilename(m, project.name), meetingMarkdown(m, project.name))}>
+              Download .md
+            </button>
+            <button type="button" className="btn btn-sm btn-primary" onClick={() => onEdit(m)}>
+              Edit
+            </button>
+          </>
+        )
+      }
+    >
+      {m ? (
+        <article className="fullview-doc">
+          <header className="fullview-head">
+            <div className="eyebrow">
+              {formatDate(m.date, 'EEEE, MMMM d, yyyy')}
+              {time && ` · ${time}`}
+            </div>
+            <h1>{m.title}</h1>
+            {m.location && (
+              <div className="meeting-meta">
+                <Location location={m.location} />
+              </div>
+            )}
+          </header>
+          <Attendees names={m.attendees} />
+          {notesOf(m)}
+          <p className="muted small fullview-foot">Last edited {format(parseISO(m.updated_at), 'MMM d, HH:mm')}</p>
+        </article>
+      ) : loading ? (
+        <Loading className="fullview-doc">
+          <header className="fullview-head">
+            <div className="eyebrow">
+              <Skeleton w={220} />
+            </div>
+            <h1>
+              <Skeleton w="55%" />
+            </h1>
+          </header>
+          <MarkdownSkeleton />
+        </Loading>
+      ) : (
+        <div className="fullview-doc empty-day">
+          <p className="muted">This meeting doesn't exist anymore.</p>
+          <button type="button" className="btn" onClick={onClose}>
+            Back to meetings
+          </button>
+        </div>
+      )}
+    </FullView>
   )
 }
 

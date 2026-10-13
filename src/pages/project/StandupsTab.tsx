@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router'
 import { endOfMonth, format, isSameMonth, parseISO, startOfMonth } from 'date-fns'
 import { Calendar } from '../../components/Calendar'
 import { ErrorBox } from '../../components/Feedback'
+import { FullView } from '../../components/FullView'
 import { Markdown } from '../../components/Markdown'
 import { MarkdownEditor } from '../../components/MarkdownEditor'
 import { Loading, MarkdownSkeleton, Skeleton } from '../../components/Skeleton'
@@ -61,6 +62,20 @@ export function StandupsTab() {
       if (next.view) p.set('view', next.view)
       return p
     })
+  }
+
+  // Full view is part of the URL (`&full=1`), so it survives a reload and can be shared.
+  const full = view === 'day' && params.get('full') === '1'
+  function setFull(on: boolean) {
+    setParams(
+      (prev) => {
+        const p = new URLSearchParams(prev)
+        if (on) p.set('full', '1')
+        else p.delete('full')
+        return p
+      },
+      { replace: !on },
+    )
   }
 
   async function onImport(e: ChangeEvent<HTMLInputElement>) {
@@ -191,6 +206,8 @@ export function StandupsTab() {
               onNavigate={(date) => go({ date })}
               onChanged={dates.reload}
               dirty={dirty}
+              full={full}
+              onToggleFull={setFull}
             />
           ) : (
             <StandupMonth key={version} project={project} month={month} onOpen={(date) => go({ date, view: 'day' })} />
@@ -212,9 +229,11 @@ interface StandupDayProps {
   onNavigate: (date: string) => void
   onChanged: () => void
   dirty: { current: boolean }
+  full: boolean
+  onToggleFull: (full: boolean) => void
 }
 
-function StandupDay({ project, date, sprint, prevDate, nextDate, onNavigate, onChanged, dirty }: StandupDayProps) {
+function StandupDay({ project, date, sprint, prevDate, nextDate, onNavigate, onChanged, dirty, full, onToggleFull }: StandupDayProps) {
   const entry = useAsync(() => api.getStandup(project.id, date), [project.id, date])
   /** `null` = not editing. */
   const [draft, setDraft] = useState<string | null>(null)
@@ -283,18 +302,51 @@ function StandupDay({ project, date, sprint, prevDate, nextDate, onNavigate, onC
     if (file) edit(await file.text(), '')
   }
 
-  const isToday = date === todayISO()
+  const title = formatDate(date, 'MMMM d, yyyy')
+  const eyebrow = (
+    <div className="eyebrow">
+      {format(parseISO(date), 'EEEE')}
+      {date === todayISO() && ' · Today'}
+    </div>
+  )
+  const sprintChip = sprint && <span className="chip">{sprint.name}</span>
+
+  // The same component renders the card and the full view, so a draft survives switching.
+  if (full) {
+    return (
+      <FullView
+        label={`Stand-up, ${title}`}
+        itemName="stand-up"
+        accent={project.color}
+        context={
+          <>
+            <span className="color-dot" />
+            <span className="truncate">{project.name} · Stand-up</span>
+          </>
+        }
+        onClose={() => onToggleFull(false)}
+        onPrev={prevDate ? () => onNavigate(prevDate) : undefined}
+        onNext={nextDate ? () => onNavigate(nextDate) : undefined}
+      >
+        <article className="fullview-doc">
+          <header className="fullview-head">
+            {eyebrow}
+            <h1>{title}</h1>
+            {sprintChip}
+          </header>
+          {body()}
+        </article>
+      </FullView>
+    )
+  }
 
   return (
     <article className="card standup-day">
       <header className="standup-day-header">
         <div className="min-w-0">
-          <div className="eyebrow">
-            {format(parseISO(date), 'EEEE')}
-            {isToday && ' · Today'}
-          </div>
-          <h2>{formatDate(date, 'MMMM d, yyyy')}</h2>
-          {sprint && <span className="chip">{sprint.name}</span>}
+          {eyebrow}
+          <h2>{title}</h2>
+          {sprintChip}
         </div>
         <div className="btn-group">
           <button type="button" className="btn btn-sm" disabled={!prevDate} onClick={() => prevDate && onNavigate(prevDate)} title="Previous stand-up">
@@ -303,69 +355,79 @@ function StandupDay({ project, date, sprint, prevDate, nextDate, onNavigate, onC
           <button type="button" className="btn btn-sm" disabled={!nextDate} onClick={() => nextDate && onNavigate(nextDate)} title="Next stand-up">
             Next ›
           </button>
+          <button type="button" className="btn btn-sm" onClick={() => onToggleFull(true)} title="Read or write in a full-window view">
+            Full view
+          </button>
         </div>
       </header>
-
-      {error && <ErrorBox>{error}</ErrorBox>}
-
-      {entry.loading ? (
-        <Loading>
-          <MarkdownSkeleton />
-        </Loading>
-      ) : entry.error ? (
-        <ErrorBox>{entry.error}</ErrorBox>
-      ) : draft !== null ? (
-        <div className="stack">
-          <MarkdownEditor value={draft} onChange={setDraft} rows={16} autoFocus onSubmitShortcut={save} />
-          <div className="form-actions">
-            <span className="muted small hide-sm">Ctrl + Enter to save</span>
-            <div className="spacer" />
-            <button type="button" className="btn" onClick={cancel} disabled={busy}>
-              Cancel
-            </button>
-            <button type="button" className="btn btn-primary" onClick={save} disabled={busy}>
-              {busy ? 'Saving…' : 'Save stand-up'}
-            </button>
-          </div>
-        </div>
-      ) : entry.data ? (
-        <>
-          <Markdown>{entry.data.content}</Markdown>
-          <footer className="standup-day-footer">
-            <span className="muted small">Last edited {format(parseISO(entry.data.updated_at), 'MMM d, HH:mm')}</span>
-            <div className="spacer" />
-            <button type="button" className="btn btn-sm btn-danger-ghost" onClick={remove}>
-              Delete
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm"
-              onClick={() => downloadText(`${slugify(project.name)}-${date}.md`, entry.data!.content)}
-            >
-              Download .md
-            </button>
-            <button type="button" className="btn btn-sm btn-primary" onClick={startEditing}>
-              Edit
-            </button>
-          </footer>
-        </>
-      ) : (
-        <div className="empty-day">
-          <p className="muted">No stand-up for this day yet.</p>
-          <div className="btn-row">
-            <button type="button" className="btn btn-primary" onClick={startEditing}>
-              Write stand-up
-            </button>
-            <button type="button" className="btn" onClick={() => fileInput.current?.click()}>
-              Load from .md file
-            </button>
-          </div>
-          {prevDate && <p className="muted small">"Today" from your previous stand-up is carried over into "Yesterday".</p>}
-          <input ref={fileInput} type="file" accept={MD_ACCEPT} hidden onChange={loadFile} />
-        </div>
-      )}
+      {body()}
     </article>
   )
+
+  function body() {
+    return (
+      <>
+        {error && <ErrorBox>{error}</ErrorBox>}
+
+        {entry.loading ? (
+          <Loading>
+            <MarkdownSkeleton />
+          </Loading>
+        ) : entry.error ? (
+          <ErrorBox>{entry.error}</ErrorBox>
+        ) : draft !== null ? (
+          <div className="stack">
+            <MarkdownEditor value={draft} onChange={setDraft} rows={full ? 24 : 16} autoFocus onSubmitShortcut={save} />
+            <div className="form-actions">
+              <span className="muted small hide-sm">Ctrl + Enter to save</span>
+              <div className="spacer" />
+              <button type="button" className="btn" onClick={cancel} disabled={busy}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary" onClick={save} disabled={busy}>
+                {busy ? 'Saving…' : 'Save stand-up'}
+              </button>
+            </div>
+          </div>
+        ) : entry.data ? (
+          <>
+            <Markdown>{entry.data.content}</Markdown>
+            <footer className="standup-day-footer">
+              <span className="muted small">Last edited {format(parseISO(entry.data.updated_at), 'MMM d, HH:mm')}</span>
+              <div className="spacer" />
+              <button type="button" className="btn btn-sm btn-danger-ghost" onClick={remove}>
+                Delete
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => downloadText(`${slugify(project.name)}-${date}.md`, entry.data!.content)}
+              >
+                Download .md
+              </button>
+              <button type="button" className="btn btn-sm btn-primary" onClick={startEditing}>
+                Edit
+              </button>
+            </footer>
+          </>
+        ) : (
+          <div className="empty-day">
+            <p className="muted">No stand-up for this day yet.</p>
+            <div className="btn-row">
+              <button type="button" className="btn btn-primary" onClick={startEditing}>
+                Write stand-up
+              </button>
+              <button type="button" className="btn" onClick={() => fileInput.current?.click()}>
+                Load from .md file
+              </button>
+            </div>
+            {prevDate && <p className="muted small">"Today" from your previous stand-up is carried over into "Yesterday".</p>}
+            <input ref={fileInput} type="file" accept={MD_ACCEPT} hidden onChange={loadFile} />
+          </div>
+        )}
+      </>
+    )
+  }
 }
 
 // ---------------------------------------------------------------------------

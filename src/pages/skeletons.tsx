@@ -422,13 +422,16 @@ export function MeetingCardsSkeleton() {
     <>
       {[150, 190].map((w, i) => (
         <div key={w} className="card meeting-card">
-          <header>
-            <h3 className="meeting-title">
-              <Skeleton w={w} />
-            </h3>
-            <div className="meeting-meta">
-              <Skeleton w={160} />
+          <header className="meeting-card-head">
+            <div className="min-w-0 grow">
+              <h3 className="meeting-title">
+                <Skeleton w={w} />
+              </h3>
+              <div className="meeting-meta">
+                <Skeleton w={160} />
+              </div>
             </div>
+            <Skeleton w={78} h={30} />
           </header>
           <ul className="attendees">
             {[48, 64, 56].map((a) => (

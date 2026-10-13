@@ -10,6 +10,7 @@ A small web app for keeping several projects under control, built with **React +
   - **Import `.md` files**: a file named like `2026-10-13.md` lands on that date. You can select many files at once.
   - **Download** a single day, or a whole month, as `.md`.
   - `Ctrl/⌘ + Enter` saves.
+- **Full view** for a stand-up or a meeting: a distraction-free, full-window view. `←` / `→` go to the previous / next one and `Esc` closes it. It's part of the URL, so you can link to it. You can also write a stand-up there; your draft is kept when you leave full view.
 - **Meetings**: custom meetings per project (kickoff, sprint planning, client demo…), separate from stand-ups.
   - Title, date, optional start/end time, a location or call link, and attendees.
   - Markdown notes, starting from an *Agenda / Notes / Action items* template. Notes can be loaded from a `.md` file.
