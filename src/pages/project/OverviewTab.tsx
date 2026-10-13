@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { PaymentStatusBadge, SprintStatusBadge } from '../../components/Badges'
 import { ErrorBox } from '../../components/Feedback'
 import { Markdown } from '../../components/Markdown'
+import { NotesView } from '../../components/NotesView'
 import * as api from '../../lib/api'
 import { formatDate, formatMoney, formatRange, formatRelativeDay, todayISO } from '../../lib/format'
 import { meetingWhen } from '../../lib/meetings'
@@ -53,7 +54,7 @@ export function OverviewTab() {
               {formatDate(standup.date, 'EEEE, MMMM d')} · {formatRelativeDay(standup.date, today)}
             </div>
             <div className="clamp">
-              <Markdown>{standup.content}</Markdown>
+              <NotesView content={standup.content} format={standup.content_format} />
             </div>
           </>
         ) : (

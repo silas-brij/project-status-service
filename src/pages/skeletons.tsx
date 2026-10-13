@@ -285,7 +285,7 @@ export function StandupsSkeleton({ view }: { view: 'day' | 'month' }) {
         <Skeleton w={112} h={32} />
         <Skeleton w={58} h={30} />
         <div className="spacer" />
-        <Skeleton w={124} h={30} />
+        <Skeleton w={138} h={30} />
       </div>
       <div className="standups-layout">
         <aside className="stack">

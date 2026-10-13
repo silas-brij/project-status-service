@@ -4,14 +4,16 @@ import { endOfMonth, format, isSameMonth, parseISO, startOfMonth } from 'date-fn
 import { Calendar } from '../../components/Calendar'
 import { ErrorBox } from '../../components/Feedback'
 import { FullView } from '../../components/FullView'
-import { Markdown } from '../../components/Markdown'
 import { MarkdownEditor } from '../../components/MarkdownEditor'
+import { NotesView } from '../../components/NotesView'
 import { Loading, MarkdownSkeleton, Skeleton } from '../../components/Skeleton'
 import * as api from '../../lib/api'
 import { cx, downloadText, errorMessage, formatDate, isISODate, plural, slugify, toISODate, todayISO } from '../../lib/format'
+import { isBlankNotes, NOTES_FILE_ACCEPT, readNotesFile, toMarkdown, type Notes } from '../../lib/notesFile'
+import { sanitizeHtml } from '../../lib/sanitizeHtml'
 import { sprintForDate } from '../../lib/sprints'
 import { dateFromFilename, standupTemplate } from '../../lib/standup'
-import type { Project, Sprint } from '../../lib/types'
+import type { NotesFormat, Project, Sprint } from '../../lib/types'
 import { useAsync } from '../../lib/useAsync'
 import { useCalendarMonth } from '../../lib/useCalendarMonth'
 import { DateListSkeleton, StandupEntriesSkeleton } from '../skeletons'
@@ -19,7 +21,6 @@ import { useProject } from './ProjectLayout'
 
 type View = 'day' | 'month'
 
-const MD_ACCEPT = '.md,.markdown,.txt,text/markdown,text/plain'
 
 export function StandupsTab() {
   const { project } = useProject()
@@ -83,16 +84,30 @@ export function StandupsTab() {
     e.target.value = ''
     if (files.length === 0 || !confirmDiscard()) return
 
-    const byDate = new Map<string, string>()
-    const skipped: string[] = []
-    for (const file of files) {
-      // A single file without a date in its name goes to the selected day.
-      const date = dateFromFilename(file.name) ?? (files.length === 1 ? selected : null)
-      if (date) byDate.set(date, await file.text())
-      else skipped.push(file.name)
+    const byDate = new Map<string, Notes>()
+    const noDate: string[] = []
+    const empty: string[] = []
+    try {
+      for (const file of files) {
+        // A single file without a date in its name goes to the selected day.
+        const date = dateFromFilename(file.name) ?? (files.length === 1 ? selected : null)
+        if (!date) {
+          noDate.push(file.name)
+          continue
+        }
+        const notes = await readNotesFile(file)
+        if (isBlankNotes(notes.content, notes.format)) empty.push(file.name)
+        else byDate.set(date, notes)
+      }
+    } catch (err) {
+      setNotice({ tone: 'error', text: `Couldn't read the files: ${errorMessage(err)}` })
+      return
     }
+    const skipped =
+      (noDate.length ? ` Skipped (no date in name): ${noDate.join(', ')}.` : '') +
+      (empty.length ? ` Skipped (empty): ${empty.join(', ')}.` : '')
     if (byDate.size === 0) {
-      setNotice({ tone: 'error', text: `No date found in the file names. Name files like 2026-10-13.md.` })
+      setNotice({ tone: 'error', text: `Nothing imported.${skipped} Name files like 2026-10-13.md or 2026-10-13.html.` })
       return
     }
     const replacing = [...byDate.keys()].filter((d) => dateSet.has(d)).length
@@ -102,14 +117,14 @@ export function StandupsTab() {
     try {
       await api.saveStandups(
         project.id,
-        [...byDate].map(([date, content]) => ({ date, content })),
+        [...byDate].map(([date, notes]) => ({ date, content: notes.content, content_format: notes.format })),
       )
       dates.reload()
       setVersion((v) => v + 1)
       const imported = [...byDate.keys()].sort()
       setNotice({
         tone: 'success',
-        text: `Imported ${plural(imported.length, 'stand-up')}.${skipped.length ? ` Skipped (no date in name): ${skipped.join(', ')}.` : ''}`,
+        text: `Imported ${plural(imported.length, 'stand-up')}.${skipped}`,
       })
       if (imported.length === 1) go({ date: imported[0], view: 'day' })
     } catch (err) {
@@ -139,10 +154,15 @@ export function StandupsTab() {
           Today
         </button>
         <div className="spacer" />
-        <button type="button" className="btn btn-sm" onClick={() => importInput.current?.click()} title="Files named like 2026-10-13.md are placed on that date">
-          Import .md files
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={() => importInput.current?.click()}
+          title="Markdown or HTML files named like 2026-10-13.md or 2026-10-13.html are placed on that date"
+        >
+          Import .md / .html
         </button>
-        <input ref={importInput} type="file" accept={MD_ACCEPT} multiple hidden onChange={onImport} />
+        <input ref={importInput} type="file" accept={NOTES_FILE_ACCEPT} multiple hidden onChange={onImport} />
       </div>
 
       {notice && (
@@ -237,30 +257,43 @@ function StandupDay({ project, date, sprint, prevDate, nextDate, onNavigate, onC
   const entry = useAsync(() => api.getStandup(project.id, date), [project.id, date])
   /** `null` = not editing. */
   const [draft, setDraft] = useState<string | null>(null)
-  const [baseline, setBaseline] = useState('')
+  const [draftFormat, setDraftFormat] = useState<NotesFormat>('markdown')
+  const [baseline, setBaseline] = useState<Notes>({ content: '', format: 'markdown' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
-  dirty.current = draft !== null && draft !== baseline
+  dirty.current = draft !== null && (draft !== baseline.content || draftFormat !== baseline.format)
 
-  function edit(text: string, base = text) {
-    setDraft(text)
+  function edit(notes: Notes, base = notes) {
+    setDraft(notes.content)
+    setDraftFormat(notes.format)
     setBaseline(base)
     setError(null)
   }
 
   async function startEditing() {
-    if (entry.data) return edit(entry.data.content)
+    if (entry.data) return edit({ content: entry.data.content, format: entry.data.content_format })
     let previous: string | null = null
     if (prevDate) {
       try {
-        previous = (await api.getStandup(project.id, prevDate))?.content ?? null
+        const prev = await api.getStandup(project.id, prevDate)
+        if (prev) previous = await toMarkdown(prev.content, prev.content_format)
       } catch {
         // Fall back to the plain template.
       }
     }
-    edit(standupTemplate(previous))
+    edit({ content: standupTemplate(previous), format: 'markdown' })
+  }
+
+  async function convertToMarkdown() {
+    if (draft === null) return
+    try {
+      setDraft(await toMarkdown(draft, 'html'))
+      setDraftFormat('markdown')
+    } catch (err) {
+      setError(errorMessage(err))
+    }
   }
 
   function cancel() {
@@ -271,11 +304,12 @@ function StandupDay({ project, date, sprint, prevDate, nextDate, onNavigate, onC
 
   async function save() {
     if (draft === null || busy) return
-    if (!draft.trim()) return setError('The stand-up is empty.')
+    if (isBlankNotes(draft, draftFormat)) return setError('The stand-up is empty.')
     setBusy(true)
     setError(null)
     try {
-      entry.mutate(await api.saveStandup(project.id, date, draft))
+      const content = draftFormat === 'html' ? sanitizeHtml(draft) : draft
+      entry.mutate(await api.saveStandup(project.id, date, content, draftFormat))
       setDraft(null)
       onChanged()
     } catch (err) {
@@ -299,7 +333,12 @@ function StandupDay({ project, date, sprint, prevDate, nextDate, onNavigate, onC
   async function loadFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
-    if (file) edit(await file.text(), '')
+    if (!file) return
+    try {
+      edit(await readNotesFile(file), { content: '', format: 'markdown' })
+    } catch (err) {
+      setError(`Couldn't read ${file.name}: ${errorMessage(err)}`)
+    }
   }
 
   const title = formatDate(date, 'MMMM d, yyyy')
@@ -377,7 +416,15 @@ function StandupDay({ project, date, sprint, prevDate, nextDate, onNavigate, onC
           <ErrorBox>{entry.error}</ErrorBox>
         ) : draft !== null ? (
           <div className="stack">
-            <MarkdownEditor value={draft} onChange={setDraft} rows={full ? 24 : 16} autoFocus onSubmitShortcut={save} />
+            <MarkdownEditor
+              value={draft}
+              onChange={setDraft}
+              format={draftFormat}
+              onConvertToMarkdown={convertToMarkdown}
+              rows={full ? 24 : 16}
+              autoFocus
+              onSubmitShortcut={save}
+            />
             <div className="form-actions">
               <span className="muted small hide-sm">Ctrl + Enter to save</span>
               <div className="spacer" />
@@ -391,20 +438,14 @@ function StandupDay({ project, date, sprint, prevDate, nextDate, onNavigate, onC
           </div>
         ) : entry.data ? (
           <>
-            <Markdown>{entry.data.content}</Markdown>
+            <NotesView content={entry.data.content} format={entry.data.content_format} />
             <footer className="standup-day-footer">
               <span className="muted small">Last edited {format(parseISO(entry.data.updated_at), 'MMM d, HH:mm')}</span>
               <div className="spacer" />
               <button type="button" className="btn btn-sm btn-danger-ghost" onClick={remove}>
                 Delete
               </button>
-              <button
-                type="button"
-                className="btn btn-sm"
-                onClick={() => downloadText(`${slugify(project.name)}-${date}.md`, entry.data!.content)}
-              >
-                Download .md
-              </button>
+              <DownloadNotes name={`${slugify(project.name)}-${date}`} content={entry.data.content} format={entry.data.content_format} />
               <button type="button" className="btn btn-sm btn-primary" onClick={startEditing}>
                 Edit
               </button>
@@ -418,16 +459,26 @@ function StandupDay({ project, date, sprint, prevDate, nextDate, onNavigate, onC
                 Write stand-up
               </button>
               <button type="button" className="btn" onClick={() => fileInput.current?.click()}>
-                Load from .md file
+                Load .md or .html file
               </button>
             </div>
             {prevDate && <p className="muted small">"Today" from your previous stand-up is carried over into "Yesterday".</p>}
-            <input ref={fileInput} type="file" accept={MD_ACCEPT} hidden onChange={loadFile} />
+            <input ref={fileInput} type="file" accept={NOTES_FILE_ACCEPT} hidden onChange={loadFile} />
           </div>
         )}
       </>
     )
   }
+}
+
+/** Downloads notes as they are: Markdown as .md, HTML as .html. */
+function DownloadNotes({ name, content, format }: { name: string; content: string; format: NotesFormat }) {
+  const ext = format === 'html' ? 'html' : 'md'
+  return (
+    <button type="button" className="btn btn-sm" onClick={() => downloadText(`${name}.${ext}`, content, format)}>
+      Download .{ext}
+    </button>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -438,9 +489,12 @@ function StandupMonth({ project, month, onOpen }: { project: Project; month: Dat
   const list = useAsync(() => api.listStandupsInRange(project.id, from, to), [project.id, from, to])
   const entries = list.data ?? []
 
-  function downloadMonth() {
+  async function downloadMonth() {
     const title = `# ${project.name} — Stand-ups, ${format(month, 'MMMM yyyy')}`
-    const body = entries.map((s) => `## ${formatDate(s.date, 'EEEE, MMMM d, yyyy')}\n\n${s.content.trim()}`)
+    // HTML stand-ups are converted, so the month reads as one Markdown document.
+    const body = await Promise.all(
+      entries.map(async (s) => `## ${formatDate(s.date, 'EEEE, MMMM d, yyyy')}\n\n${(await toMarkdown(s.content, s.content_format)).trim()}`),
+    )
     downloadText(`${slugify(project.name)}-standups-${format(month, 'yyyy-MM')}.md`, [title, ...body].join('\n\n---\n\n') + '\n')
   }
 
@@ -470,7 +524,7 @@ function StandupMonth({ project, month, onOpen }: { project: Project; month: Dat
             <button type="button" className="standup-entry-date" onClick={() => onOpen(s.date)}>
               {formatDate(s.date, 'EEEE, MMMM d')}
             </button>
-            <Markdown>{s.content}</Markdown>
+            <NotesView content={s.content} format={s.content_format} />
           </article>
         ))
       )}

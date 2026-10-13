@@ -3,6 +3,7 @@ import type {
   Meeting,
   MeetingInput,
   MeetingSummary,
+  NotesFormat,
   Payment,
   PaymentInput,
   Project,
@@ -84,17 +85,20 @@ export async function getLatestStandup(projectId: string) {
   )
 }
 
-export async function saveStandup(projectId: string, date: string, content: string) {
+export async function saveStandup(projectId: string, date: string, content: string, contentFormat: NotesFormat) {
   return unwrap<Standup>(
     await supabase
       .from('standups')
-      .upsert({ project_id: projectId, date, content }, { onConflict: 'project_id,date' })
+      .upsert({ project_id: projectId, date, content, content_format: contentFormat }, { onConflict: 'project_id,date' })
       .select()
       .single(),
   )
 }
 
-export async function saveStandups(projectId: string, entries: { date: string; content: string }[]) {
+export async function saveStandups(
+  projectId: string,
+  entries: Pick<Standup, 'date' | 'content' | 'content_format'>[],
+) {
   unwrap(
     await supabase
       .from('standups')

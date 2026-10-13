@@ -1,6 +1,8 @@
 export type ProjectStatus = 'active' | 'on_hold' | 'completed' | 'archived'
 export type SprintStatus = 'planned' | 'active' | 'completed'
 export type PaymentStatus = 'pending' | 'invoiced' | 'paid' | 'cancelled'
+/** Stand-up and meeting notes are Markdown, or an HTML document shown as designed. */
+export type NotesFormat = 'markdown' | 'html'
 
 /** Dates are ISO calendar dates (`yyyy-MM-dd`), timestamps are ISO strings. */
 export interface Project {
@@ -30,8 +32,8 @@ export interface Standup {
   id: string
   project_id: string
   date: string
-  /** Markdown */
   content: string
+  content_format: NotesFormat
   created_at: string
   updated_at: string
 }
@@ -80,13 +82,17 @@ export interface Meeting {
   /** Room, address or video-call link. */
   location: string | null
   attendees: string[]
-  /** Markdown: agenda, notes, action items. */
+  /** Agenda, notes, action items. */
   notes: string
+  notes_format: NotesFormat
   created_at: string
   updated_at: string
 }
 
-export type MeetingInput = Pick<Meeting, 'title' | 'date' | 'start_time' | 'end_time' | 'location' | 'attendees' | 'notes'>
+export type MeetingInput = Pick<
+  Meeting,
+  'title' | 'date' | 'start_time' | 'end_time' | 'location' | 'attendees' | 'notes' | 'notes_format'
+>
 
 /** A meeting without its notes, for calendars and lists. */
 export type MeetingSummary = Pick<Meeting, 'id' | 'project_id' | 'title' | 'date' | 'start_time' | 'end_time'>

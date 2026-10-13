@@ -7,13 +7,14 @@ A small web app for keeping several projects under control, built with **React +
   - **Day view**: rendered Markdown, with prev/next to step through entries.
   - **Month view**: every stand-up of the month as one readable feed.
   - New stand-ups start from a *Yesterday / Today / Blockers* template, and the previous stand-up's *Today* is carried into *Yesterday*.
-  - **Import `.md` files**: a file named like `2026-10-13.md` lands on that date. You can select many files at once.
+  - **Import `.md` or `.html` files**: a file named like `2026-10-13.md` or `2026-10-13.html` lands on that date. You can select many files at once.
   - **Download** a single day, or a whole month, as `.md`.
   - `Ctrl/⌘ + Enter` saves.
+- **HTML notes**: load an `.html` file (or import `2026-10-13.html`) and it is shown as designed, with its own styles, tables and layout. It is cleaned on upload (no scripts, forms or `javascript:` links) and shown in a sandboxed frame where nothing can run. You can edit the HTML source with a live preview, or click **Convert to Markdown**. HTML notes download as `.html`.
 - **Full view** for a stand-up or a meeting: a distraction-free, full-window view. `←` / `→` go to the previous / next one and `Esc` closes it. It's part of the URL, so you can link to it. You can also write a stand-up there; your draft is kept when you leave full view.
 - **Meetings**: custom meetings per project (kickoff, sprint planning, client demo…), separate from stand-ups.
   - Title, date, optional start/end time, a location or call link, and attendees.
-  - Markdown notes, starting from an *Agenda / Notes / Action items* template. Notes can be loaded from a `.md` file.
+  - Markdown notes, starting from an *Agenda / Notes / Action items* template. Notes can be loaded from a `.md` or `.html` file.
   - Several meetings per day, browsed on a calendar, with prev/next between meeting days.
   - **Download** a meeting as `.md`.
   - Upcoming meetings also show on the project overview and the dashboard.
@@ -33,8 +34,9 @@ Each user only ever sees their own data. Row Level Security in Postgres enforces
 2. Open **SQL Editor → New query** and run each migration, in order:
    1. [`supabase/migrations/20261013000000_init.sql`](supabase/migrations/20261013000000_init.sql)
    2. [`supabase/migrations/20261013120000_meetings.sql`](supabase/migrations/20261013120000_meetings.sql)
+   3. [`supabase/migrations/20261014000000_html_notes.sql`](supabase/migrations/20261014000000_html_notes.sql)
 
-   Paste the file's contents and click **Run**. If you already ran the first file, run only the second.
+   Paste each file's contents and click **Run**. Files you already ran don't need to run again.
    (With the Supabase CLI, `supabase link` + `supabase db push` does the same.)
 3. Go to **Authentication → URL Configuration**:
    - Set **Site URL** to your deployed URL, e.g. `https://projects.example.com`.
@@ -80,8 +82,8 @@ The app is a static single-page app. Set the two `VITE_…` variables in your ho
 | Table      | What it holds                                                                               |
 | ---------- | ------------------------------------------------------------------------------------------- |
 | `projects` | One row per project, owned by `owner_id` (= the signed-in user)                             |
-| `standups` | `project_id`, `date`, `content` (Markdown). Unique per `(project_id, date)`                 |
-| `meetings` | `project_id`, `title`, `date`, `start_time`, `end_time`, `location`, `attendees`, `notes` (Markdown). Several per day |
+| `standups` | `project_id`, `date`, `content`, `content_format` (`markdown` or `html`). Unique per `(project_id, date)` |
+| `meetings` | `project_id`, `title`, `date`, `start_time`, `end_time`, `location`, `attendees`, `notes`, `notes_format` (`markdown` or `html`). Several per day |
 | `sprints`  | `project_id`, `name`, `goal`, `start_date`, `end_date`, `status`, `notes` (Markdown)        |
 | `payments` | `project_id`, `title`, `amount`, `due_date`, `status`, `paid_date`, `notes`                 |
 

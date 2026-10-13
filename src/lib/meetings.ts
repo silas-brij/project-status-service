@@ -1,4 +1,4 @@
-import { formatDate, formatRelativeDay, slugify } from './format'
+import { downloadText, formatDate, formatRelativeDay, slugify } from './format'
 import type { Meeting, MeetingSummary } from './types'
 
 /** Quick picks for the title field. */
@@ -72,5 +72,13 @@ export function meetingMarkdown(m: Meeting, projectName: string) {
   return `# ${m.title}\n\n${details.join('\n')}\n\n---\n\n${m.notes.trim()}\n`
 }
 
-export const meetingFilename = (m: Meeting, projectName: string) =>
-  `${slugify(projectName)}-${m.date}-${slugify(m.title)}.md`
+export const meetingFilename = (m: Meeting, projectName: string, ext = 'md') =>
+  `${slugify(projectName)}-${m.date}-${slugify(m.title)}.${ext}`
+
+export const meetingDownloadExt = (m: Meeting) => (m.notes_format === 'html' ? 'html' : 'md')
+
+/** Markdown notes download as a .md document with the meeting details; HTML notes as the HTML file itself. */
+export function downloadMeeting(m: Meeting, projectName: string) {
+  if (m.notes_format === 'html') downloadText(meetingFilename(m, projectName, 'html'), m.notes, 'html')
+  else downloadText(meetingFilename(m, projectName), meetingMarkdown(m, projectName))
+}

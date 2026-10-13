@@ -5,31 +5,31 @@ import { Calendar } from '../../components/Calendar'
 import { ErrorBox } from '../../components/Feedback'
 import { Field } from '../../components/Field'
 import { FullView } from '../../components/FullView'
-import { Markdown } from '../../components/Markdown'
 import { MarkdownEditor } from '../../components/MarkdownEditor'
+import { NotesView } from '../../components/NotesView'
 import { Modal } from '../../components/Modal'
 import { Loading, MarkdownSkeleton, Skeleton } from '../../components/Skeleton'
 import * as api from '../../lib/api'
-import { cx, downloadText, errorMessage, formatDate, isISODate, plural, todayISO } from '../../lib/format'
+import { cx, errorMessage, formatDate, isISODate, plural, todayISO } from '../../lib/format'
 import {
   MEETING_SUGGESTIONS,
   MEETING_TEMPLATE,
   formatTime,
   isLink,
   linkLabel,
-  meetingFilename,
-  meetingMarkdown,
+  downloadMeeting,
+  meetingDownloadExt,
   meetingTime,
   parseAttendees,
 } from '../../lib/meetings'
+import { isBlankNotes, NOTES_FILE_ACCEPT, readNotesFile, toMarkdown } from '../../lib/notesFile'
+import { sanitizeHtml } from '../../lib/sanitizeHtml'
 import { sprintForDate } from '../../lib/sprints'
-import type { Meeting, MeetingInput, MeetingSummary, Project } from '../../lib/types'
+import type { Meeting, MeetingInput, MeetingSummary, NotesFormat, Project } from '../../lib/types'
 import { useAsync } from '../../lib/useAsync'
 import { useCalendarMonth } from '../../lib/useCalendarMonth'
 import { DateListSkeleton, MeetingCardsSkeleton } from '../skeletons'
 import { useProject } from './ProjectLayout'
-
-const MD_ACCEPT = '.md,.markdown,.txt,text/markdown,text/plain'
 
 /** An existing meeting, or the date a new one starts on. */
 type Editing = { meeting: Meeting } | { date: string }
@@ -264,7 +264,8 @@ function Attendees({ names }: { names: string[] }) {
   )
 }
 
-const notesOf = (m: Meeting) => (m.notes.trim() ? <Markdown>{m.notes}</Markdown> : <p className="muted">No notes yet.</p>)
+const notesOf = (m: Meeting) =>
+  m.notes.trim() ? <NotesView content={m.notes} format={m.notes_format} /> : <p className="muted">No notes yet.</p>
 
 interface MeetingCardProps {
   meeting: Meeting
@@ -297,8 +298,8 @@ function MeetingCard({ meeting: m, project, onFullView, onEdit, onDelete }: Meet
         <button type="button" className="btn btn-sm btn-danger-ghost" onClick={onDelete}>
           Delete
         </button>
-        <button type="button" className="btn btn-sm" onClick={() => downloadText(meetingFilename(m, project.name), meetingMarkdown(m, project.name))}>
-          Download .md
+        <button type="button" className="btn btn-sm" onClick={() => downloadMeeting(m, project.name)}>
+          Download .{meetingDownloadExt(m)}
         </button>
         <button type="button" className="btn btn-sm btn-primary" onClick={onEdit}>
           Edit
@@ -341,8 +342,8 @@ function MeetingFullView({ project, meeting: m, loading, prev, next, onOpen, onC
       actions={
         m && (
           <>
-            <button type="button" className="btn btn-sm" onClick={() => downloadText(meetingFilename(m, project.name), meetingMarkdown(m, project.name))}>
-              Download .md
+            <button type="button" className="btn btn-sm" onClick={() => downloadMeeting(m, project.name)}>
+              Download .{meetingDownloadExt(m)}
             </button>
             <button type="button" className="btn btn-sm btn-primary" onClick={() => onEdit(m)}>
               Edit
@@ -395,6 +396,14 @@ function MeetingFullView({ project, meeting: m, loading, prev, next, onOpen, onC
 
 // ---------------------------------------------------------------------------
 
+/** Notes as saved: HTML is cleaned, and an untouched template or a blank document is not worth keeping. */
+function notesInput(notes: string, format: NotesFormat): Pick<MeetingInput, 'notes' | 'notes_format'> {
+  if (format === 'html') {
+    return isBlankNotes(notes, 'html') ? { notes: '', notes_format: 'markdown' } : { notes: sanitizeHtml(notes), notes_format: 'html' }
+  }
+  return { notes: notes.trim() === MEETING_TEMPLATE.trim() ? '' : notes, notes_format: 'markdown' }
+}
+
 interface MeetingFormModalProps {
   projectId: string
   meeting?: Meeting
@@ -413,6 +422,7 @@ function MeetingFormModal({ projectId, meeting, date, onClose, onSaved }: Meetin
     location: meeting?.location ?? '',
     attendees: meeting?.attendees.join(', ') ?? '',
     notes: meeting?.notes.trim() ? meeting.notes : MEETING_TEMPLATE,
+    notes_format: meeting?.notes.trim() ? meeting.notes_format : ('markdown' as NotesFormat),
   }))
   const [form, setForm] = useState(initial)
   const [busy, setBusy] = useState(false)
@@ -431,7 +441,22 @@ function MeetingFormModal({ projectId, meeting, date, onClose, onSaved }: Meetin
   async function loadFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
-    if (file) set('notes', await file.text())
+    if (!file) return
+    try {
+      const notes = await readNotesFile(file)
+      setForm((f) => ({ ...f, notes: notes.content, notes_format: notes.format }))
+    } catch (err) {
+      setError(`Couldn't read ${file.name}: ${errorMessage(err)}`)
+    }
+  }
+
+  async function convertToMarkdown() {
+    try {
+      const notes = await toMarkdown(form.notes, 'html')
+      setForm((f) => ({ ...f, notes, notes_format: 'markdown' }))
+    } catch (err) {
+      setError(errorMessage(err))
+    }
   }
 
   async function submit(e: FormEvent) {
@@ -449,8 +474,7 @@ function MeetingFormModal({ projectId, meeting, date, onClose, onSaved }: Meetin
         end_time: form.end_time || null,
         location: form.location.trim() || null,
         attendees: parseAttendees(form.attendees),
-        // An untouched template is not worth keeping.
-        notes: form.notes.trim() === MEETING_TEMPLATE.trim() ? '' : form.notes,
+        ...notesInput(form.notes, form.notes_format),
       }
       onSaved(meeting ? await api.updateMeeting(meeting.id, input) : await api.createMeeting(projectId, input))
     } catch (err) {
@@ -501,11 +525,18 @@ function MeetingFormModal({ projectId, meeting, date, onClose, onSaved }: Meetin
               <div className="field-label-row">
                 <span className="field-label">Notes</span>
                 <button type="button" className="link-btn small" onClick={() => fileInput.current?.click()}>
-                  Load from .md file
+                  Load .md or .html file
                 </button>
-                <input ref={fileInput} type="file" accept={MD_ACCEPT} hidden onChange={loadFile} />
+                <input ref={fileInput} type="file" accept={NOTES_FILE_ACCEPT} hidden onChange={loadFile} />
               </div>
-              <MarkdownEditor value={form.notes} onChange={(v) => set('notes', v)} rows={12} onSubmitShortcut={() => formRef.current?.requestSubmit()} />
+              <MarkdownEditor
+                value={form.notes}
+                onChange={(v) => set('notes', v)}
+                format={form.notes_format}
+                onConvertToMarkdown={convertToMarkdown}
+                rows={12}
+                onSubmitShortcut={() => formRef.current?.requestSubmit()}
+              />
             </div>
           </div>
         </div>
