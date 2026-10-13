@@ -1,5 +1,8 @@
 import { supabase } from './supabase'
 import type {
+  Meeting,
+  MeetingInput,
+  MeetingSummary,
   Payment,
   PaymentInput,
   Project,
@@ -154,6 +157,47 @@ export async function deletePayment(id: string) {
   unwrap(await supabase.from('payments').delete().eq('id', id))
 }
 
+// Meetings -------------------------------------------------------------------
+
+const MEETING_SUMMARY = 'id, project_id, title, date, start_time, end_time'
+
+/** Every meeting of a project, without notes, in date and time order. */
+export async function listMeetings(projectId: string) {
+  return unwrap<MeetingSummary[]>(
+    await supabase
+      .from('meetings')
+      .select(MEETING_SUMMARY)
+      .eq('project_id', projectId)
+      .order('date')
+      .order('start_time', { nullsFirst: true }),
+  )
+}
+
+export async function listMeetingsOn(projectId: string, date: string) {
+  return unwrap<Meeting[]>(
+    await supabase
+      .from('meetings')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('date', date)
+      .order('start_time', { nullsFirst: true }),
+  )
+}
+
+export async function createMeeting(projectId: string, input: MeetingInput) {
+  return unwrap<Meeting>(
+    await supabase.from('meetings').insert({ ...input, project_id: projectId }).select().single(),
+  )
+}
+
+export async function updateMeeting(id: string, input: Partial<MeetingInput>) {
+  return unwrap<Meeting>(await supabase.from('meetings').update(input).eq('id', id).select().single())
+}
+
+export async function deleteMeeting(id: string) {
+  unwrap(await supabase.from('meetings').delete().eq('id', id))
+}
+
 // Dashboard ------------------------------------------------------------------
 
 export interface DashboardData {
@@ -162,10 +206,12 @@ export interface DashboardData {
   payments: Payment[]
   /** Stand-up dates since `since`, across all projects. */
   standups: Pick<Standup, 'project_id' | 'date'>[]
+  /** Meetings from `today` on, in date and time order. */
+  meetings: MeetingSummary[]
 }
 
-export async function loadDashboard(since: string): Promise<DashboardData> {
-  const [projects, sprints, payments, standups] = await Promise.all([
+export async function loadDashboard(since: string, today: string): Promise<DashboardData> {
+  const [projects, sprints, payments, standups, meetings] = await Promise.all([
     listProjects(),
     supabase.from('sprints').select('*').then(unwrap<Sprint[]>),
     supabase.from('payments').select('*').order('due_date').then(unwrap<Payment[]>),
@@ -174,6 +220,13 @@ export async function loadDashboard(since: string): Promise<DashboardData> {
       .select('project_id, date')
       .gte('date', since)
       .then(unwrap<Pick<Standup, 'project_id' | 'date'>[]>),
+    supabase
+      .from('meetings')
+      .select(MEETING_SUMMARY)
+      .gte('date', today)
+      .order('date')
+      .order('start_time', { nullsFirst: true })
+      .then(unwrap<MeetingSummary[]>),
   ])
-  return { projects, sprints, payments, standups }
+  return { projects, sprints, payments, standups, meetings }
 }

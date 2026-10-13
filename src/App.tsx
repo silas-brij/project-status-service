@@ -6,6 +6,7 @@ import { Layout, LayoutSkeleton } from './components/Layout'
 import { SetupNotice } from './components/SetupNotice'
 import { isSupabaseConfigured } from './lib/supabase'
 import { DashboardPage } from './pages/DashboardPage'
+import { MeetingsTab } from './pages/project/MeetingsTab'
 import { OverviewTab } from './pages/project/OverviewTab'
 import { PaymentsTab } from './pages/project/PaymentsTab'
 import { ProjectLayout } from './pages/project/ProjectLayout'
@@ -38,6 +39,7 @@ export function App() {
             <Route path="projects/:projectId" element={<ProjectLayout />}>
               <Route index element={<OverviewTab />} />
               <Route path="standups" element={<StandupsTab />} />
+              <Route path="meetings" element={<MeetingsTab />} />
               <Route path="sprints" element={<SprintsTab />} />
               <Route path="payments" element={<PaymentsTab />} />
             </Route>

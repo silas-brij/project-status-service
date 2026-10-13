@@ -53,6 +53,27 @@ export function DashboardSkeleton() {
           </ul>
         </section>
         <section className="card">
+          <h2 className="card-title">Meetings · next 7 days</h2>
+          <ul className="panel-list">
+            {range(3).map((i) => (
+              <li key={i}>
+                <Skeleton w={10} h={10} round />
+                <div className="grow">
+                  <div>
+                    <Skeleton w={['46%', '58%', '40%'][i]} />
+                  </div>
+                  <div className="small">
+                    <Skeleton w="35%" />
+                  </div>
+                </div>
+                <div className="right small">
+                  <Skeleton w={84} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section className="card">
           <h2 className="card-title">Payments due · next 30 days</h2>
           <ul className="panel-list">
             {range(3).map((i) => (
@@ -96,11 +117,11 @@ export function DashboardSkeleton() {
               <Skeleton w="35%" />
             </div>
             <dl className="meta-list">
-              {['Sprint', 'Last stand-up', 'Next payment', 'Outstanding'].map((label, j) => (
+              {['Sprint', 'Last stand-up', 'Next meeting', 'Next payment', 'Outstanding'].map((label, j) => (
                 <div key={label}>
                   <dt>{label}</dt>
                   <dd>
-                    <Skeleton w={[110, 70, 120, 80][j]} />
+                    <Skeleton w={[110, 70, 130, 120, 80][j]} />
                   </dd>
                 </div>
               ))}
@@ -147,6 +168,8 @@ export function ProjectSkeleton() {
 
       {tab === 'standups' ? (
         <StandupsSkeleton view={new URLSearchParams(search).get('view') === 'month' ? 'month' : 'day'} />
+      ) : tab === 'meetings' ? (
+        <MeetingsSkeleton />
       ) : tab === 'sprints' ? (
         <SprintsSkeleton />
       ) : tab === 'payments' ? (
@@ -186,6 +209,22 @@ export function OverviewSkeleton() {
           <Skeleton w="45%" />
         </div>
         <MarkdownSkeleton sections={2} />
+      </section>
+
+      <section className="card">
+        <CardHeadSkeleton title="Upcoming meetings" />
+        <ul className="panel-list">
+          {[140, 110, 160].map((w) => (
+            <li key={w}>
+              <span className="grow">
+                <Skeleton w={w} />
+              </span>
+              <span className="small">
+                <Skeleton w={90} />
+              </span>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="card">
@@ -250,20 +289,7 @@ export function StandupsSkeleton({ view }: { view: 'day' | 'month' }) {
       </div>
       <div className="standups-layout">
         <aside className="stack">
-          <div className="card">
-            <div className="calendar-header">
-              <Skeleton w={30} h={30} />
-              <Skeleton w={110} />
-              <Skeleton w={30} h={30} />
-            </div>
-            <Skeleton className="calendar-skeleton" h="auto" />
-          </div>
-          <div className="card">
-            <h3 className="card-title">
-              <Skeleton w={150} />
-            </h3>
-            <StandupDateListSkeleton />
-          </div>
+          <CalendarAsideSkeleton />
         </aside>
         <section className="min-w-0">
           {view === 'month' ? (
@@ -302,8 +328,30 @@ export function StandupsSkeleton({ view }: { view: 'day' | 'month' }) {
   )
 }
 
-/** Rows of the "stand-ups this month" list next to the calendar. */
-export function StandupDateListSkeleton() {
+/** Calendar card + "this month" list card. */
+function CalendarAsideSkeleton() {
+  return (
+    <>
+      <div className="card">
+        <div className="calendar-header">
+          <Skeleton w={30} h={30} />
+          <Skeleton w={110} />
+          <Skeleton w={30} h={30} />
+        </div>
+        <Skeleton className="calendar-skeleton" h="auto" />
+      </div>
+      <div className="card">
+        <h3 className="card-title">
+          <Skeleton w={150} />
+        </h3>
+        <DateListSkeleton />
+      </div>
+    </>
+  )
+}
+
+/** Rows of the "this month" list next to a calendar. */
+export function DateListSkeleton() {
   return (
     <ul className="date-list">
       {[100, 88, 108, 94].map((w) => (
@@ -325,6 +373,71 @@ export function StandupEntriesSkeleton() {
             <Skeleton w={160} />
           </h3>
           <MarkdownSkeleton sections={i === 1 ? 3 : 2} />
+        </div>
+      ))}
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Meetings
+
+export function MeetingsSkeleton() {
+  return (
+    <Loading className="stack">
+      <div className="toolbar">
+        <Skeleton w={58} h={30} />
+        <div className="spacer" />
+        <Skeleton w={130} h={36} />
+      </div>
+      <div className="standups-layout">
+        <aside className="stack">
+          <CalendarAsideSkeleton />
+        </aside>
+        <section className="stack min-w-0">
+          <header className="meetings-day-header">
+            <div className="min-w-0 grow">
+              <div className="eyebrow">
+                <Skeleton w={90} />
+              </div>
+              <h2>
+                <Skeleton w={190} />
+              </h2>
+            </div>
+            <div className="btn-group">
+              <Skeleton w={66} h={30} />
+              <Skeleton w={66} h={30} />
+            </div>
+          </header>
+          <MeetingCardsSkeleton />
+        </section>
+      </div>
+    </Loading>
+  )
+}
+
+/** Meeting cards of the selected day. */
+export function MeetingCardsSkeleton() {
+  return (
+    <>
+      {[150, 190].map((w, i) => (
+        <div key={w} className="card meeting-card">
+          <header>
+            <h3 className="meeting-title">
+              <Skeleton w={w} />
+            </h3>
+            <div className="meeting-meta">
+              <Skeleton w={160} />
+            </div>
+          </header>
+          <ul className="attendees">
+            {[48, 64, 56].map((a) => (
+              <li key={a} className="is-skeleton">
+                <Skeleton w={a} />
+              </li>
+            ))}
+          </ul>
+          <MarkdownSkeleton sections={i ? 2 : 3} />
         </div>
       ))}
     </>

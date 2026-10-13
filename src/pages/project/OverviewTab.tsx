@@ -4,6 +4,7 @@ import { ErrorBox } from '../../components/Feedback'
 import { Markdown } from '../../components/Markdown'
 import * as api from '../../lib/api'
 import { formatDate, formatMoney, formatRange, formatRelativeDay, todayISO } from '../../lib/format'
+import { meetingWhen } from '../../lib/meetings'
 import { paymentStatus, summarizePayments } from '../../lib/payments'
 import { currentSprint, progressLabel, sprintProgress } from '../../lib/sprints'
 import { useAsync } from '../../lib/useAsync'
@@ -16,9 +17,12 @@ export function OverviewTab() {
   const base = `/projects/${project.id}`
   const overview = useAsync(
     () =>
-      Promise.all([api.getLatestStandup(project.id), api.listSprints(project.id), api.listPayments(project.id)]).then(
-        ([standup, sprints, payments]) => ({ standup, sprints, payments }),
-      ),
+      Promise.all([
+        api.getLatestStandup(project.id),
+        api.listMeetings(project.id),
+        api.listSprints(project.id),
+        api.listPayments(project.id),
+      ]).then(([standup, meetings, sprints, payments]) => ({ standup, meetings, sprints, payments })),
     [project.id],
   )
 
@@ -26,7 +30,8 @@ export function OverviewTab() {
   if (overview.error) return <ErrorBox>{overview.error}</ErrorBox>
   if (!overview.data) return null
 
-  const { standup, sprints, payments } = overview.data
+  const { standup, meetings, sprints, payments } = overview.data
+  const upcoming = meetings.filter((m) => m.date >= today).slice(0, 4)
   const sprint = currentSprint(sprints, today)
   const progress = sprint ? sprintProgress(sprint, today) : null
   const nextSprint = sprints.filter((s) => s.start_date > today).at(-1)
@@ -53,6 +58,29 @@ export function OverviewTab() {
           </>
         ) : (
           <p className="muted">No stand-ups yet.</p>
+        )}
+      </section>
+
+      <section className="card">
+        <div className="card-head">
+          <h2 className="card-title">Upcoming meetings</h2>
+          <Link className="btn btn-sm" to={`${base}/meetings`}>
+            All meetings
+          </Link>
+        </div>
+        {upcoming.length === 0 ? (
+          <p className="muted">No upcoming meetings.</p>
+        ) : (
+          <ul className="panel-list">
+            {upcoming.map((m) => (
+              <li key={m.id}>
+                <Link to={`${base}/meetings?date=${m.date}`} className="grow truncate">
+                  {m.title}
+                </Link>
+                <span className="muted small nowrap">{meetingWhen(m, today)}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 

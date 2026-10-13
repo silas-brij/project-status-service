@@ -12,7 +12,8 @@ import { sprintForDate } from '../../lib/sprints'
 import { dateFromFilename, standupTemplate } from '../../lib/standup'
 import type { Project, Sprint } from '../../lib/types'
 import { useAsync } from '../../lib/useAsync'
-import { StandupDateListSkeleton, StandupEntriesSkeleton } from '../skeletons'
+import { useCalendarMonth } from '../../lib/useCalendarMonth'
+import { DateListSkeleton, StandupEntriesSkeleton } from '../skeletons'
 import { useProject } from './ProjectLayout'
 
 type View = 'day' | 'month'
@@ -26,13 +27,7 @@ export function StandupsTab() {
   const selected = isISODate(dateParam) ? dateParam : todayISO()
   const view: View = params.get('view') === 'month' ? 'month' : 'day'
 
-  const [month, setMonth] = useState(() => startOfMonth(parseISO(selected)))
-  // Follow the selected date into another month (e.g. "Today", prev/next, links).
-  const [lastSelected, setLastSelected] = useState(selected)
-  if (lastSelected !== selected) {
-    setLastSelected(selected)
-    if (!isSameMonth(parseISO(selected), month)) setMonth(startOfMonth(parseISO(selected)))
-  }
+  const [month, setMonth] = useCalendarMonth(selected)
 
   const dates = useAsync(() => api.listStandupDates(project.id), [project.id])
   const sprints = useAsync(() => api.listSprints(project.id), [project.id])
@@ -162,7 +157,7 @@ export function StandupsTab() {
               {format(month, 'MMMM')} · {dates.data ? plural(monthDates.length, 'stand-up') : <Skeleton w={80} />}
             </h3>
             {!dates.data ? (
-              !dates.error && <StandupDateListSkeleton />
+              !dates.error && <DateListSkeleton />
             ) : monthDates.length === 0 ? (
               <p className="muted small">Nothing this month.</p>
             ) : (

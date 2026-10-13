@@ -26,11 +26,13 @@ interface CalendarProps {
   onSelect: (date: string) => void
   /** Dates that have an entry (shown with a dot). */
   marked: Set<string>
+  /** What a dot means, for the legend and screen readers. */
+  markedLabel?: string
   /** Date ranges (e.g. sprints) drawn as a bar under the days. */
   ranges?: CalendarRange[]
 }
 
-export function Calendar({ month, onMonthChange, selected, onSelect, marked, ranges = [] }: CalendarProps) {
+export function Calendar({ month, onMonthChange, selected, onSelect, marked, markedLabel = 'Stand-up', ranges = [] }: CalendarProps) {
   const today = todayISO()
   const days = eachDayOfInterval({
     start: startOfWeek(startOfMonth(month), { weekStartsOn: WEEK_STARTS_ON }),
@@ -75,7 +77,7 @@ export function Calendar({ month, onMonthChange, selected, onSelect, marked, ran
               )}
               onClick={() => onSelect(iso)}
               aria-pressed={iso === selected}
-              aria-label={`${format(d, 'EEEE, MMMM d, yyyy')}${hasEntry ? ', has stand-up' : ''}${range ? `, ${range.label}` : ''}`}
+              aria-label={`${format(d, 'EEEE, MMMM d, yyyy')}${hasEntry ? `, has ${markedLabel.toLowerCase()}` : ''}${range ? `, ${range.label}` : ''}`}
               title={range?.label}
             >
               {format(d, 'd')}
@@ -85,7 +87,7 @@ export function Calendar({ month, onMonthChange, selected, onSelect, marked, ran
       </div>
       <div className="calendar-legend">
         <span>
-          <i className="legend-dot" /> Stand-up
+          <i className="legend-dot" /> {markedLabel}
         </span>
         {ranges.length > 0 && (
           <span>

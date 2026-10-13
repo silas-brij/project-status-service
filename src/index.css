@@ -932,13 +932,8 @@ textarea {
    ========================================================================== */
 .dash-panels {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
   gap: 16px;
-}
-@media (max-width: 860px) {
-  .dash-panels {
-    grid-template-columns: 1fr;
-  }
 }
 
 .panel-list {
@@ -1307,6 +1302,76 @@ textarea {
 }
 .standup-entry-date:hover {
   color: var(--primary);
+}
+
+/* ==========================================================================
+   Meetings
+   ========================================================================== */
+.meetings-day-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.meetings-day-header h2 {
+  margin-top: 2px;
+  font-size: 20px;
+}
+
+.meeting-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 22px;
+  border-left: 3px solid var(--project-color, var(--primary));
+}
+.meeting-title {
+  font-size: 16px;
+}
+.meeting-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.meeting-meta > * + *::before {
+  content: '·';
+  display: inline-block;
+  margin-right: 8px;
+  color: var(--muted);
+}
+
+.attendees {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.attendees li {
+  padding: 1px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.time-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.field-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 /* ==========================================================================

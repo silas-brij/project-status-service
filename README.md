@@ -10,11 +10,17 @@ A small web app for keeping several projects under control, built with **React +
   - **Import `.md` files**: a file named like `2026-10-13.md` lands on that date. You can select many files at once.
   - **Download** a single day, or a whole month, as `.md`.
   - `Ctrl/⌘ + Enter` saves.
-- **Sprints**: name, dates, goal, status and Markdown notes, with a progress bar. Sprints are also drawn on the stand-up calendar.
+- **Meetings**: custom meetings per project (kickoff, sprint planning, client demo…), separate from stand-ups.
+  - Title, date, optional start/end time, a location or call link, and attendees.
+  - Markdown notes, starting from an *Agenda / Notes / Action items* template. Notes can be loaded from a `.md` file.
+  - Several meetings per day, browsed on a calendar, with prev/next between meeting days.
+  - **Download** a meeting as `.md`.
+  - Upcoming meetings also show on the project overview and the dashboard.
+- **Sprints**: name, dates, goal, status and Markdown notes, with a progress bar. Sprints are also drawn on the stand-up and meeting calendars.
 - **Payment timeline**: deposits, milestones and invoices on a timeline with a "today" marker.
   - Statuses: pending, invoiced, paid or cancelled. Overdue is detected automatically.
   - Totals for received, outstanding and overdue, and a comparison against the budget.
-- **Dashboard**: which projects still need today's stand-up, payments due in the next 30 days, and a card per project.
+- **Dashboard**: which projects still need today's stand-up, meetings in the next 7 days, payments due in the next 30 days, and a card per project.
 
 Each user only ever sees their own data. Row Level Security in Postgres enforces this.
 
@@ -23,8 +29,11 @@ Each user only ever sees their own data. Row Level Security in Postgres enforces
 ## 1. Set up Supabase
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor → New query**, paste the contents of
-   [`supabase/migrations/20261013000000_init.sql`](supabase/migrations/20261013000000_init.sql) and click **Run**.
+2. Open **SQL Editor → New query** and run each migration, in order:
+   1. [`supabase/migrations/20261013000000_init.sql`](supabase/migrations/20261013000000_init.sql)
+   2. [`supabase/migrations/20261013120000_meetings.sql`](supabase/migrations/20261013120000_meetings.sql)
+
+   Paste the file's contents and click **Run**. If you already ran the first file, run only the second.
    (With the Supabase CLI, `supabase link` + `supabase db push` does the same.)
 3. Go to **Authentication → URL Configuration**:
    - Set **Site URL** to your deployed URL, e.g. `https://projects.example.com`.
@@ -71,10 +80,11 @@ The app is a static single-page app. Set the two `VITE_…` variables in your ho
 | ---------- | ------------------------------------------------------------------------------------------- |
 | `projects` | One row per project, owned by `owner_id` (= the signed-in user)                             |
 | `standups` | `project_id`, `date`, `content` (Markdown). Unique per `(project_id, date)`                 |
+| `meetings` | `project_id`, `title`, `date`, `start_time`, `end_time`, `location`, `attendees`, `notes` (Markdown). Several per day |
 | `sprints`  | `project_id`, `name`, `goal`, `start_date`, `end_date`, `status`, `notes` (Markdown)        |
 | `payments` | `project_id`, `title`, `amount`, `due_date`, `status`, `paid_date`, `notes`                 |
 
-Deleting a project deletes its stand-ups, sprints and payments. Amounts use the project's currency.
+Deleting a project deletes its stand-ups, meetings, sprints and payments. Amounts use the project's currency.
 
 ## Project structure
 
@@ -86,13 +96,14 @@ src/
     api.ts         All Supabase queries
     types.ts       Row types
     standup.ts     Template + "carry over Today" + date-from-filename
+    meetings.ts    Meeting template, times, attendees, Markdown export
     sprints.ts     Sprint progress helpers
     payments.ts    Overdue detection + totals
   pages/
     DashboardPage.tsx
     ProjectFormModal.tsx
     skeletons.tsx  Loading placeholders that mirror each page's layout
-    project/       Project layout + Overview / Stand-ups / Sprints / Payments tabs
+    project/       Project layout + Overview / Stand-ups / Meetings / Sprints / Payments tabs
 supabase/migrations/  Database schema + RLS policies
 ```
 

@@ -68,3 +68,25 @@ export interface Payment {
 }
 
 export type PaymentInput = Pick<Payment, 'title' | 'amount' | 'due_date' | 'status' | 'paid_date' | 'notes'>
+
+export interface Meeting {
+  id: string
+  project_id: string
+  title: string
+  date: string
+  /** Local wall-clock time, `HH:mm:ss`. */
+  start_time: string | null
+  end_time: string | null
+  /** Room, address or video-call link. */
+  location: string | null
+  attendees: string[]
+  /** Markdown: agenda, notes, action items. */
+  notes: string
+  created_at: string
+  updated_at: string
+}
+
+export type MeetingInput = Pick<Meeting, 'title' | 'date' | 'start_time' | 'end_time' | 'location' | 'attendees' | 'notes'>
+
+/** A meeting without its notes, for calendars and lists. */
+export type MeetingSummary = Pick<Meeting, 'id' | 'project_id' | 'title' | 'date' | 'start_time' | 'end_time'>

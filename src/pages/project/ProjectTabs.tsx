@@ -3,6 +3,7 @@ import { NavLink } from 'react-router'
 const TABS = [
   { path: '', label: 'Overview' },
   { path: 'standups', label: 'Stand-ups' },
+  { path: 'meetings', label: 'Meetings' },
   { path: 'sprints', label: 'Sprints' },
   { path: 'payments', label: 'Payments' },
 ]

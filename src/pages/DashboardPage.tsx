@@ -6,6 +6,7 @@ import { EmptyState, ErrorBox } from '../components/Feedback'
 import { Stat } from '../components/Stat'
 import * as api from '../lib/api'
 import { cx, formatDate, formatMoney, formatRelativeDay, plural, toISODate, todayISO } from '../lib/format'
+import { meetingWhen } from '../lib/meetings'
 import { isOpenPayment, paymentStatus, summarizePayments } from '../lib/payments'
 import { currentSprint, progressLabel, sprintProgress } from '../lib/sprints'
 import { PROJECT_STATUS, PROJECT_STATUSES } from '../lib/status'
@@ -17,11 +18,12 @@ import { DashboardSkeleton } from './skeletons'
 type Filter = 'open' | 'all' | ProjectStatus
 
 const UPCOMING_DAYS = 30
+const MEETING_DAYS = 7
 
 export function DashboardPage() {
   const today = todayISO()
   const since = toISODate(subDays(new Date(), 60))
-  const dash = useAsync(() => api.loadDashboard(since), [since])
+  const dash = useAsync(() => api.loadDashboard(since, today), [since, today])
   const [creating, setCreating] = useState(false)
   const navigate = useNavigate()
 
@@ -66,7 +68,7 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
   const [query, setQuery] = useState('')
 
   const rows = useMemo(() => {
-    const { projects, sprints, payments, standups } = data
+    const { projects, sprints, payments, standups, meetings } = data
     return projects.map((project) => {
       const lastStandup = standups
         .filter((s) => s.project_id === project.id)
@@ -76,6 +78,8 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
         sprint: currentSprint(sprints.filter((s) => s.project_id === project.id), today),
         payments: summarizePayments(payments.filter((p) => p.project_id === project.id), today),
         lastStandup,
+        // Meetings are sorted by date and time, so the first one is the next.
+        nextMeeting: meetings.find((m) => m.project_id === project.id) ?? null,
       }
     })
   }, [data, today])
@@ -89,6 +93,10 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
   const horizon = toISODate(addDays(new Date(), UPCOMING_DAYS))
   const duePayments = data.payments
     .filter((p) => isOpenPayment(p) && p.due_date <= horizon && projectById.get(p.project_id)?.status !== 'archived')
+    .slice(0, 8)
+  const meetingHorizon = toISODate(addDays(new Date(), MEETING_DAYS))
+  const upcomingMeetings = data.meetings
+    .filter((m) => m.date <= meetingHorizon && projectById.get(m.project_id)?.status !== 'archived')
     .slice(0, 8)
 
   const q = query.trim().toLowerCase()
@@ -155,6 +163,29 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
         </section>
 
         <section className="card">
+          <h2 className="card-title">Meetings · next {MEETING_DAYS} days</h2>
+          {upcomingMeetings.length === 0 ? (
+            <p className="muted">No meetings scheduled.</p>
+          ) : (
+            <ul className="panel-list">
+              {upcomingMeetings.map((m) => {
+                const project = projectById.get(m.project_id)
+                return (
+                  <li key={m.id}>
+                    <span className="color-dot" style={{ background: project?.color }} />
+                    <Link to={`/projects/${m.project_id}/meetings?date=${m.date}`} className="grow min-w-0">
+                      <div className="truncate">{m.title}</div>
+                      <div className="muted small truncate">{project?.name}</div>
+                    </Link>
+                    <div className="right small nowrap">{meetingWhen(m, today)}</div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
+
+        <section className="card">
           <h2 className="card-title">Payments due · next {UPCOMING_DAYS} days</h2>
           {duePayments.length === 0 ? (
             <p className="muted">Nothing due. 🎉</p>
@@ -203,7 +234,7 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
         <p className="muted">No projects match this filter.</p>
       ) : (
         <div className="project-grid">
-          {visible.map(({ project: p, sprint, payments, lastStandup }) => (
+          {visible.map(({ project: p, sprint, payments, lastStandup, nextMeeting }) => (
             <Link key={p.id} to={`/projects/${p.id}`} className="card project-card" style={{ '--project-color': p.color } as CSSProperties}>
               <div className="project-card-top">
                 <h3 className="truncate">{p.name}</h3>
@@ -220,6 +251,10 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
                   <dd className={cx(lastStandup === today && 'text-green')}>
                     {lastStandup ? formatRelativeDay(lastStandup, today) : 'None recently'}
                   </dd>
+                </div>
+                <div>
+                  <dt>Next meeting</dt>
+                  <dd className="truncate">{nextMeeting ? `${meetingWhen(nextMeeting, today)} · ${nextMeeting.title}` : '—'}</dd>
                 </div>
                 <div>
                   <dt>Next payment</dt>
