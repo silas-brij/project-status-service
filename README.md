@@ -15,7 +15,7 @@ A small web app for keeping several projects under control, built with **React +
 - **Meetings**: custom meetings per project (kickoff, sprint planning, client demo…), separate from stand-ups.
   - Title, date, optional start/end time, a location or call link, and attendees.
   - Markdown notes, starting from an *Agenda / Notes / Action items* template. Notes can be loaded from a `.md` or `.html` file.
-  - Several meetings per day, browsed on a calendar, with prev/next between meeting days.
+  - Several meetings per day, browsed on a calendar. One meeting is shown at a time: pick it from the day's list or the month list, or step through meetings with prev/next. The selected meeting is part of the URL.
   - **Download** a meeting as `.md`.
   - Upcoming meetings also show on the project overview and the dashboard.
 - **Sprints**: name, dates, goal, status and Markdown notes, with a progress bar. Sprints are also drawn on the stand-up and meeting calendars.

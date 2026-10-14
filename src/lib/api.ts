@@ -173,7 +173,8 @@ export async function listMeetings(projectId: string) {
       .select(MEETING_SUMMARY)
       .eq('project_id', projectId)
       .order('date')
-      .order('start_time', { nullsFirst: true }),
+      .order('start_time', { nullsFirst: true })
+      .order('created_at'),
   )
 }
 
@@ -184,7 +185,8 @@ export async function listMeetingsOn(projectId: string, date: string) {
       .select('*')
       .eq('project_id', projectId)
       .eq('date', date)
-      .order('start_time', { nullsFirst: true }),
+      .order('start_time', { nullsFirst: true })
+      .order('created_at'),
   )
 }
 
@@ -230,6 +232,7 @@ export async function loadDashboard(since: string, today: string): Promise<Dashb
       .gte('date', today)
       .order('date')
       .order('start_time', { nullsFirst: true })
+      .order('created_at')
       .then(unwrap<MeetingSummary[]>),
   ])
   return { projects, sprints, payments, standups, meetings }

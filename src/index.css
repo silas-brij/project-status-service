@@ -1216,7 +1216,8 @@ textarea {
 }
 @media (max-width: 860px) {
   .standups-layout {
-    grid-template-columns: 1fr;
+    /* minmax(0, …): a long title in the list truncates instead of widening the page. */
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1322,6 +1323,28 @@ textarea {
 .meetings-day-header h2 {
   margin-top: 2px;
   font-size: 20px;
+}
+
+/* Picks one of the selected day's meetings. Long titles truncate; many meetings wrap. */
+.day-meetings {
+  flex-wrap: wrap;
+  align-self: flex-start;
+  max-width: 100%;
+  gap: 2px;
+}
+.day-meetings button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+.day-meeting-time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.day-meetings button.active .day-meeting-time {
+  color: var(--text-2);
 }
 
 .meeting-card {

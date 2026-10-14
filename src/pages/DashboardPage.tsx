@@ -173,7 +173,7 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
                 return (
                   <li key={m.id}>
                     <span className="color-dot" style={{ background: project?.color }} />
-                    <Link to={`/projects/${m.project_id}/meetings?date=${m.date}`} className="grow min-w-0">
+                    <Link to={`/projects/${m.project_id}/meetings?date=${m.date}&meeting=${m.id}`} className="grow min-w-0">
                       <div className="truncate">{m.title}</div>
                       <div className="muted small truncate">{project?.name}</div>
                     </Link>

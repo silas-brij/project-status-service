@@ -28,7 +28,7 @@ import { sprintForDate } from '../../lib/sprints'
 import type { Meeting, MeetingInput, MeetingSummary, NotesFormat, Project } from '../../lib/types'
 import { useAsync } from '../../lib/useAsync'
 import { useCalendarMonth } from '../../lib/useCalendarMonth'
-import { DateListSkeleton, MeetingCardsSkeleton } from '../skeletons'
+import { DateListSkeleton, MeetingCardSkeleton } from '../skeletons'
 import { useProject } from './ProjectLayout'
 
 /** An existing meeting, or the date a new one starts on. */
@@ -53,32 +53,53 @@ export function MeetingsTab() {
     [sprints.data],
   )
   const all = meetings.data ?? []
-  const prevDate = all.findLast((m) => m.date < selected)?.date
-  const nextDate = all.find((m) => m.date > selected)?.date
   const monthMeetings = all.filter((m) => isSameMonth(parseISO(m.date), month))
   const sprint = sprintForDate(sprints.data ?? [], selected)
+
+  // One meeting is shown at a time (`&meeting=<id>`); without one, the day's first.
+  // Full view links from before `meeting` existed still pick the meeting they show.
+  const fullId = params.get('full')
+  const meetingId = params.get('meeting') ?? fullId
+  const dayMeetings: MeetingSummary[] = day.data ?? all.filter((m) => m.date === selected)
+  const current = dayMeetings.find((m) => m.id === meetingId) ?? dayMeetings[0]
+  const shown = current && day.data?.find((m) => m.id === current.id)
+  // Prev/Next step through meetings one by one, across days.
+  const index = current ? all.findIndex((m) => m.id === current.id) : -1
+  const prev = index >= 0 ? all[index - 1] : all.findLast((m) => m.date < selected)
+  const next = index >= 0 ? all[index + 1] : all.find((m) => m.date > selected)
 
   const go = (date: string) =>
     setParams((prev) => {
       const p = new URLSearchParams(prev)
       p.set('date', date)
+      p.delete('meeting')
+      return p
+    })
+  const select = (m: Pick<MeetingSummary, 'id' | 'date'>) =>
+    setParams((prev) => {
+      const p = new URLSearchParams(prev)
+      p.set('date', m.date)
+      p.set('meeting', m.id)
       return p
     })
 
   // Full view of one meeting is part of the URL (`&full=<meeting id>`).
-  const fullId = params.get('full')
   const fullIndex = fullId ? all.findIndex((m) => m.id === fullId) : -1
   const openFull = (m: MeetingSummary) =>
     setParams((prev) => {
       const p = new URLSearchParams(prev)
       p.set('date', m.date)
+      p.set('meeting', m.id)
       p.set('full', m.id)
       return p
     })
+  // Closing leaves the meeting you were reading selected.
   const closeFull = () =>
     setParams(
       (prev) => {
         const p = new URLSearchParams(prev)
+        const id = p.get('full')
+        if (id) p.set('meeting', id)
         p.delete('full')
         return p
       },
@@ -95,6 +116,7 @@ export function MeetingsTab() {
     setError(null)
     try {
       await api.deleteMeeting(m.id)
+      if (day.data) day.mutate(day.data.filter((x) => x.id !== m.id))
       refresh()
     } catch (err) {
       setError(errorMessage(err))
@@ -147,7 +169,12 @@ export function MeetingsTab() {
               <ul className="date-list">
                 {monthMeetings.map((m) => (
                   <li key={m.id}>
-                    <button type="button" className={cx('date-list-item', m.date === selected && 'active')} onClick={() => go(m.date)}>
+                    <button
+                      type="button"
+                      className={cx('date-list-item', m.id === current?.id && 'active')}
+                      aria-current={m.id === current?.id || undefined}
+                      onClick={() => select(m)}
+                    >
                       <span className="truncate">{m.title}</span>
                       <span className="muted small nowrap">
                         {formatDate(m.date, 'EEE d')}
@@ -172,24 +199,41 @@ export function MeetingsTab() {
               {sprint && <span className="chip">{sprint.name}</span>}
             </div>
             <div className="btn-group">
-              <button type="button" className="btn btn-sm" disabled={!prevDate} onClick={() => prevDate && go(prevDate)} title="Previous day with meetings">
+              <button type="button" className="btn btn-sm" disabled={!prev} onClick={() => prev && select(prev)} title="Previous meeting">
                 ‹ Prev
               </button>
-              <button type="button" className="btn btn-sm" disabled={!nextDate} onClick={() => nextDate && go(nextDate)} title="Next day with meetings">
+              <button type="button" className="btn btn-sm" disabled={!next} onClick={() => next && select(next)} title="Next meeting">
                 Next ›
               </button>
             </div>
           </header>
 
+          {dayMeetings.length > 1 && (
+            <div className="segmented day-meetings" role="group" aria-label={`${dayMeetings.length} meetings on this day`}>
+              {dayMeetings.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={cx(m.id === current?.id && 'active')}
+                  aria-current={m.id === current?.id || undefined}
+                  onClick={() => select(m)}
+                >
+                  {m.start_time && <span className="day-meeting-time">{formatTime(m.start_time)} </span>}
+                  <span className="truncate">{m.title}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           {!day.data ? (
             day.error ? (
               <ErrorBox>{day.error}</ErrorBox>
             ) : (
-              <Loading className="stack">
-                <MeetingCardsSkeleton />
+              <Loading>
+                <MeetingCardSkeleton />
               </Loading>
             )
-          ) : day.data.length === 0 ? (
+          ) : !shown ? (
             <div className="card empty-day">
               <p className="muted">No meetings on this day.</p>
               <button type="button" className="btn btn-primary" onClick={() => setEditing({ date: selected })}>
@@ -197,16 +241,14 @@ export function MeetingsTab() {
               </button>
             </div>
           ) : (
-            day.data.map((m) => (
-              <MeetingCard
-                key={m.id}
-                meeting={m}
-                project={project}
-                onFullView={() => openFull(m)}
-                onEdit={() => setEditing({ meeting: m })}
-                onDelete={() => remove(m)}
-              />
-            ))
+            <MeetingCard
+              key={shown.id}
+              meeting={shown}
+              project={project}
+              onFullView={() => openFull(shown)}
+              onEdit={() => setEditing({ meeting: shown })}
+              onDelete={() => remove(shown)}
+            />
           )}
         </section>
       </div>
@@ -232,7 +274,11 @@ export function MeetingsTab() {
           onClose={() => setEditing(null)}
           onSaved={(saved) => {
             setEditing(null)
-            go(saved.date)
+            // Show the saved meeting right away; the reload puts it in time order.
+            if (saved.date === selected && day.data) {
+              day.mutate(day.data.some((m) => m.id === saved.id) ? day.data.map((m) => (m.id === saved.id ? saved : m)) : [...day.data, saved])
+            }
+            select(saved)
             refresh()
           }}
         />

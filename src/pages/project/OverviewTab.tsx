@@ -75,7 +75,7 @@ export function OverviewTab() {
           <ul className="panel-list">
             {upcoming.map((m) => (
               <li key={m.id}>
-                <Link to={`${base}/meetings?date=${m.date}`} className="grow truncate">
+                <Link to={`${base}/meetings?date=${m.date}&meeting=${m.id}`} className="grow truncate">
                   {m.title}
                 </Link>
                 <span className="muted small nowrap">{meetingWhen(m, today)}</span>

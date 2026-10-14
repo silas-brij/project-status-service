@@ -409,41 +409,37 @@ export function MeetingsSkeleton() {
               <Skeleton w={66} h={30} />
             </div>
           </header>
-          <MeetingCardsSkeleton />
+          <MeetingCardSkeleton />
         </section>
       </div>
     </Loading>
   )
 }
 
-/** Meeting cards of the selected day. */
-export function MeetingCardsSkeleton() {
+/** The selected meeting's card. */
+export function MeetingCardSkeleton() {
   return (
-    <>
-      {[150, 190].map((w, i) => (
-        <div key={w} className="card meeting-card">
-          <header className="meeting-card-head">
-            <div className="min-w-0 grow">
-              <h3 className="meeting-title">
-                <Skeleton w={w} />
-              </h3>
-              <div className="meeting-meta">
-                <Skeleton w={160} />
-              </div>
-            </div>
-            <Skeleton w={78} h={30} />
-          </header>
-          <ul className="attendees">
-            {[48, 64, 56].map((a) => (
-              <li key={a} className="is-skeleton">
-                <Skeleton w={a} />
-              </li>
-            ))}
-          </ul>
-          <MarkdownSkeleton sections={i ? 2 : 3} />
+    <div className="card meeting-card">
+      <header className="meeting-card-head">
+        <div className="min-w-0 grow">
+          <h3 className="meeting-title">
+            <Skeleton w={170} />
+          </h3>
+          <div className="meeting-meta">
+            <Skeleton w={160} />
+          </div>
         </div>
-      ))}
-    </>
+        <Skeleton w={78} h={30} />
+      </header>
+      <ul className="attendees">
+        {[48, 64, 56].map((a) => (
+          <li key={a} className="is-skeleton">
+            <Skeleton w={a} />
+          </li>
+        ))}
+      </ul>
+      <MarkdownSkeleton sections={3} />
+    </div>
   )
 }
 
