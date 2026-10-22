@@ -3,6 +3,13 @@
 A small web app for keeping several projects under control, built with **React + Vite + TypeScript** and **Supabase**.
 
 - **Projects**: client, status, dates, budget, currency, color and a Markdown description.
+  - Statuses follow a project's life: *Proposal*, *Not started*, *Active*, *On hold*, *Completed*, *Cancelled* and *Archived*.
+  - A project that hasn't started shows when it starts ("Starts in 9 days") on the dashboard.
+- **Notes editor**: stand-ups, meeting notes, sprint notes and descriptions are written in a formatted editor, like a Slack or Teams message box.
+  - A toolbar for headings, bold, italic, strikethrough, code, bulleted and numbered lists, checklists, links, quotes and code blocks, with the usual shortcuts (`Ctrl/⌘ + B`, `I`, `K` for a link…).
+  - Markdown shortcuts work as you type: `## ` makes a heading, `- ` a bullet, `1. ` a numbered list, `[ ] ` a checkbox, `**bold**`, `` `code` ``.
+  - Pasted Markdown keeps its formatting.
+  - Everything is saved as plain Markdown. Prefer to write Markdown yourself? Click **Markdown** to edit the source; the choice is remembered in your browser.
 - **Daily stand-ups**: one Markdown entry per project per day, browsed on a calendar.
   - **Day view**: rendered Markdown, with prev/next to step through entries.
   - **Month view**: every stand-up of the month as one readable feed.
@@ -22,7 +29,7 @@ A small web app for keeping several projects under control, built with **React +
 - **Payment timeline**: deposits, milestones and invoices on a timeline with a "today" marker.
   - Statuses: pending, invoiced, paid or cancelled. Overdue is detected automatically.
   - Totals for received, outstanding and overdue, and a comparison against the budget.
-- **Dashboard**: which projects still need today's stand-up, meetings in the next 7 days, payments due in the next 30 days, and a card per project.
+- **Dashboard**: which projects still need today's stand-up, meetings in the next 7 days, payments due in the next 30 days, and a card per project. It shows open projects (not completed, cancelled or archived) by default.
 
 Each user only ever sees their own data. Row Level Security in Postgres enforces this.
 
@@ -35,6 +42,7 @@ Each user only ever sees their own data. Row Level Security in Postgres enforces
    1. [`supabase/migrations/20261013000000_init.sql`](supabase/migrations/20261013000000_init.sql)
    2. [`supabase/migrations/20261013120000_meetings.sql`](supabase/migrations/20261013120000_meetings.sql)
    3. [`supabase/migrations/20261014000000_html_notes.sql`](supabase/migrations/20261014000000_html_notes.sql)
+   4. [`supabase/migrations/20261022000000_project_statuses.sql`](supabase/migrations/20261022000000_project_statuses.sql)
 
    Paste each file's contents and click **Run**. Files you already ran don't need to run again.
    (With the Supabase CLI, `supabase link` + `supabase db push` does the same.)
@@ -81,7 +89,7 @@ The app is a static single-page app. Set the two `VITE_…` variables in your ho
 
 | Table      | What it holds                                                                               |
 | ---------- | ------------------------------------------------------------------------------------------- |
-| `projects` | One row per project, owned by `owner_id` (= the signed-in user)                             |
+| `projects` | One row per project, owned by `owner_id` (= the signed-in user), with a `status`            |
 | `standups` | `project_id`, `date`, `content`, `content_format` (`markdown` or `html`). Unique per `(project_id, date)` |
 | `meetings` | `project_id`, `title`, `date`, `start_time`, `end_time`, `location`, `attendees`, `notes`, `notes_format` (`markdown` or `html`). Several per day |
 | `sprints`  | `project_id`, `name`, `goal`, `start_date`, `end_date`, `status`, `notes` (Markdown)        |

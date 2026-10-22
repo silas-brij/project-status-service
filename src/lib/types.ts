@@ -1,4 +1,4 @@
-export type ProjectStatus = 'active' | 'on_hold' | 'completed' | 'archived'
+export type ProjectStatus = 'proposal' | 'not_started' | 'active' | 'on_hold' | 'completed' | 'cancelled' | 'archived'
 export type SprintStatus = 'planned' | 'active' | 'completed'
 export type PaymentStatus = 'pending' | 'invoiced' | 'paid' | 'cancelled'
 /** Stand-up and meeting notes are Markdown, or an HTML document shown as designed. */

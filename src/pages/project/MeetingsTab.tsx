@@ -442,12 +442,15 @@ function MeetingFullView({ project, meeting: m, loading, prev, next, onOpen, onC
 
 // ---------------------------------------------------------------------------
 
+// Ignores spacing, which the formatted editor may change without any edit to the text.
+const isUntouchedTemplate = (notes: string) => notes.replace(/\s+/g, '') === MEETING_TEMPLATE.replace(/\s+/g, '')
+
 /** Notes as saved: HTML is cleaned, and an untouched template or a blank document is not worth keeping. */
 function notesInput(notes: string, format: NotesFormat): Pick<MeetingInput, 'notes' | 'notes_format'> {
   if (format === 'html') {
     return isBlankNotes(notes, 'html') ? { notes: '', notes_format: 'markdown' } : { notes: sanitizeHtml(notes), notes_format: 'html' }
   }
-  return { notes: notes.trim() === MEETING_TEMPLATE.trim() ? '' : notes, notes_format: 'markdown' }
+  return { notes: isUntouchedTemplate(notes) ? '' : notes, notes_format: 'markdown' }
 }
 
 interface MeetingFormModalProps {
@@ -576,6 +579,7 @@ function MeetingFormModal({ projectId, meeting, date, onClose, onSaved }: Meetin
                 <input ref={fileInput} type="file" accept={NOTES_FILE_ACCEPT} hidden onChange={loadFile} />
               </div>
               <MarkdownEditor
+                label="Meeting notes"
                 value={form.notes}
                 onChange={(v) => set('notes', v)}
                 format={form.notes_format}

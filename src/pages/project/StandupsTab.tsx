@@ -417,6 +417,7 @@ function StandupDay({ project, date, sprint, prevDate, nextDate, onNavigate, onC
         ) : draft !== null ? (
           <div className="stack">
             <MarkdownEditor
+              label="Stand-up"
               value={draft}
               onChange={setDraft}
               format={draftFormat}

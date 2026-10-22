@@ -230,7 +230,7 @@ function SprintFormModal({ projectId, sprint, existing, onClose, onSaved }: Spri
             </Field>
             <div className="field span-2">
               <span className="field-label">Notes</span>
-              <MarkdownEditor value={form.notes} onChange={(v) => set('notes', v)} rows={8} placeholder="Scope, tickets, retro notes…" />
+              <MarkdownEditor label="Sprint notes" value={form.notes} onChange={(v) => set('notes', v)} rows={8} placeholder="Scope, tickets, retro notes…" />
             </div>
           </div>
         </div>

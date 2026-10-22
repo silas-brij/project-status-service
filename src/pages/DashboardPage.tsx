@@ -9,8 +9,8 @@ import { cx, formatDate, formatMoney, formatRelativeDay, plural, toISODate, toda
 import { meetingWhen } from '../lib/meetings'
 import { isOpenPayment, paymentStatus, summarizePayments } from '../lib/payments'
 import { currentSprint, progressLabel, sprintProgress } from '../lib/sprints'
-import { PROJECT_STATUS, PROJECT_STATUSES } from '../lib/status'
-import type { ProjectStatus } from '../lib/types'
+import { OPEN_PROJECT_STATUSES, PROJECT_STATUS, PROJECT_STATUSES } from '../lib/status'
+import type { Project, ProjectStatus } from '../lib/types'
 import { useAsync } from '../lib/useAsync'
 import { ProjectFormModal } from './ProjectFormModal'
 import { DashboardSkeleton } from './skeletons'
@@ -85,6 +85,7 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
   }, [data, today])
 
   const active = rows.filter((r) => r.project.status === 'active')
+  const notStarted = rows.filter((r) => r.project.status === 'not_started').length
   const standupsDone = active.filter((r) => r.lastStandup === today).length
   const runningSprints = rows.filter((r) => r.sprint).length
   const overdueCount = rows.reduce((n, r) => n + r.payments.overdueCount, 0)
@@ -101,7 +102,7 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
 
   const q = query.trim().toLowerCase()
   const visible = rows.filter(({ project: p }) => {
-    const statusOk = filter === 'all' || (filter === 'open' ? p.status === 'active' || p.status === 'on_hold' : p.status === filter)
+    const statusOk = filter === 'all' || (filter === 'open' ? OPEN_PROJECT_STATUSES.has(p.status) : p.status === filter)
     const queryOk = !q || p.name.toLowerCase().includes(q) || (p.client ?? '').toLowerCase().includes(q)
     return statusOk && queryOk
   })
@@ -120,7 +121,11 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
   return (
     <>
       <div className="stats">
-        <Stat label="Active projects" value={active.length} hint={`${rows.length} in total`} />
+        <Stat
+          label="Active projects"
+          value={active.length}
+          hint={notStarted ? `${notStarted} not started · ${rows.length} in total` : `${rows.length} in total`}
+        />
         <Stat
           label="Stand-ups today"
           value={`${standupsDone} / ${active.length}`}
@@ -220,7 +225,7 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
         <div className="spacer" />
         <input className="search" type="search" placeholder="Search projects…" value={query} onChange={(e) => setQuery(e.target.value)} />
         <select value={filter} onChange={(e) => setFilter(e.target.value as Filter)} aria-label="Filter by status">
-          <option value="open">Active &amp; on hold</option>
+          <option value="open">Open projects</option>
           <option value="all">All projects</option>
           {PROJECT_STATUSES.map((s) => (
             <option key={s} value={s}>
@@ -240,7 +245,10 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
                 <h3 className="truncate">{p.name}</h3>
                 <ProjectStatusBadge status={p.status} />
               </div>
-              <div className="muted small truncate">{p.client || 'No client'}</div>
+              <div className="muted small truncate">
+                {p.client || 'No client'}
+                {startsLabel(p, today)}
+              </div>
               <dl className="meta-list">
                 <div>
                   <dt>Sprint</dt>
@@ -278,4 +286,11 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
       )}
     </>
   )
+}
+
+/** " · Starts in 5 days" for a project that hasn't started yet. */
+function startsLabel(p: Project, today: string) {
+  if (p.status !== 'not_started' || !p.start_date) return null
+  const when = formatRelativeDay(p.start_date, today)
+  return p.start_date >= today ? ` · Starts ${when}` : ` · Was due to start ${when}`
 }

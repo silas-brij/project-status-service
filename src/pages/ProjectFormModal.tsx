@@ -136,7 +136,7 @@ export function ProjectFormModal({ project, onClose, onSaved, onDeleted }: Proje
             </div>
             <div className="field span-2">
               <span className="field-label">Description</span>
-              <MarkdownEditor value={form.description} onChange={(v) => set('description', v)} rows={6} placeholder="Scope, links, contacts…" />
+              <MarkdownEditor label="Description" value={form.description} onChange={(v) => set('description', v)} rows={6} placeholder="Scope, links, contacts…" />
             </div>
           </div>
         </div>

@@ -28,6 +28,10 @@
   --red-soft: #fdeaea;
   --gray: #4b5563;
   --gray-soft: #eef0f3;
+  --purple: #7e22ce;
+  --purple-soft: #f4ebfd;
+  --teal: #0f766e;
+  --teal-soft: #e0f4f1;
 
   --radius: 12px;
   --radius-sm: 8px;
@@ -72,6 +76,10 @@
     --red-soft: #3a1717;
     --gray: #aab1bd;
     --gray-soft: #262a32;
+    --purple: #d0b3ff;
+    --purple-soft: #2c1f45;
+    --teal: #5eead4;
+    --teal-soft: #0f2f2b;
 
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
     --shadow-md: 0 1px 3px rgb(0 0 0 / 0.35), 0 6px 16px -4px rgb(0 0 0 / 0.35);
@@ -676,6 +684,14 @@ textarea {
 .badge-red {
   background: var(--red-soft);
   color: var(--red);
+}
+.badge-purple {
+  background: var(--purple-soft);
+  color: var(--purple);
+}
+.badge-teal {
+  background: var(--teal-soft);
+  color: var(--teal);
 }
 
 .chip {
@@ -1659,6 +1675,144 @@ textarea {
 .md-editor-preview {
   padding: 14px;
   min-height: 160px;
+}
+
+/* Formatted editor: a toolbar over text that looks like the saved notes. */
+.rte-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 0;
+  padding: 4px 6px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.rte-group {
+  display: flex;
+  gap: 2px;
+}
+.rte-group + .rte-group {
+  margin-left: 6px;
+  padding-left: 6px;
+  border-left: 1px solid var(--border-strong);
+}
+.rte-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.rte-btn:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.rte-btn[aria-pressed='true'] {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+.rte-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.rte-glyph {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+.rte-glyph-italic {
+  font-style: italic;
+  font-weight: 500;
+}
+.rte-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  margin-left: auto;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+.rte-mode:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.rte-mode svg {
+  width: 15px;
+  height: 15px;
+}
+.md-editor-hint .rte-mode {
+  margin: -4px 0;
+}
+.rte-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.rte-link input {
+  flex: 1;
+  min-width: 0;
+  min-height: 30px;
+  padding: 4px 9px;
+  font-size: 13px;
+}
+.rte-content {
+  min-height: calc(var(--rows, 10) * 1.65em + 28px);
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 14px;
+  outline: none;
+}
+/* In the editor every list item holds a paragraph; keep lists as tight as when shown. */
+.rte-content li > p {
+  margin: 0;
+}
+.rte-content ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0;
+}
+.rte-content ul[data-type='taskList'] ul[data-type='taskList'] {
+  padding-left: 1.4em;
+}
+.rte-content ul[data-type='taskList'] > li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.rte-content ul[data-type='taskList'] > li > label {
+  flex: none;
+  user-select: none;
+}
+.rte-content ul[data-type='taskList'] > li > div {
+  flex: 1;
+  min-width: 0;
+}
+.rte-content a {
+  cursor: text;
+}
+.rte-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--muted);
+  pointer-events: none;
+}
+.rte-content .selectedCell {
+  background: var(--primary-soft);
 }
 
 /* ==========================================================================
