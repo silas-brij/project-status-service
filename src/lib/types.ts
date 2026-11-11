@@ -96,3 +96,15 @@ export type MeetingInput = Pick<
 
 /** A meeting without its notes, for calendars and lists. */
 export type MeetingSummary = Pick<Meeting, 'id' | 'project_id' | 'title' | 'date' | 'start_time' | 'end_time'>
+
+/** How many tickets a project completed on a day. */
+export interface TicketCount {
+  id: string
+  project_id: string
+  date: string
+  completed: number
+  created_at: string
+  updated_at: string
+}
+
+export type TicketTally = Pick<TicketCount, 'project_id' | 'date' | 'completed'>

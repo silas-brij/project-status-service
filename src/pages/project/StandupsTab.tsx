@@ -18,6 +18,7 @@ import { useAsync } from '../../lib/useAsync'
 import { useCalendarMonth } from '../../lib/useCalendarMonth'
 import { DateListSkeleton, StandupEntriesSkeleton } from '../skeletons'
 import { useProject } from './ProjectLayout'
+import { TicketCountField } from './TicketCountField'
 
 type View = 'day' | 'month'
 
@@ -407,6 +408,8 @@ function StandupDay({ project, date, sprint, prevDate, nextDate, onNavigate, onC
     return (
       <>
         {error && <ErrorBox>{error}</ErrorBox>}
+
+        {date <= todayISO() && <TicketCountField projectId={project.id} date={date} />}
 
         {entry.loading ? (
           <Loading>

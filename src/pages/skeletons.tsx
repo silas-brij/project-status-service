@@ -37,6 +37,32 @@ export function DashboardSkeleton() {
     <Loading className="stack-lg">
       <StatsSkeleton labels={['Active projects', 'Stand-ups today', 'Running sprints', 'Overdue payments']} />
 
+      <section className="card">
+        <h2 className="card-title">Tickets completed by client</h2>
+        <ul className="client-tickets">
+          {range(3).map((i) => (
+            <li key={i}>
+              <div className="client-tickets-name">
+                <Skeleton w={['55%', '40%', '48%'][i]} />
+              </div>
+              <div className="small">
+                <Skeleton w="70%" />
+              </div>
+              <dl>
+                {['Today', 'Last 7 days'].map((label) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>
+                      <Skeleton w={32} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <div className="dash-panels">
         <section className="card">
           <h2 className="card-title">Today's stand-ups</h2>

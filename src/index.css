@@ -952,6 +952,56 @@ textarea {
   gap: 16px;
 }
 
+.client-tickets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+  gap: 12px;
+}
+.client-tickets li {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.client-tickets-name {
+  font-weight: 600;
+}
+.client-tickets dl {
+  display: flex;
+  gap: 28px;
+  margin: 10px 0 0;
+}
+.client-tickets dt {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.client-tickets dd {
+  margin: 2px 0 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+/* On phones the numbers sit beside the name, so each client takes one short row. */
+@media (max-width: 480px) {
+  .client-tickets li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+    align-items: center;
+  }
+  .client-tickets dl {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    gap: 16px;
+    margin: 0;
+  }
+}
+
 .panel-list {
   list-style: none;
   margin: 0;
@@ -1286,6 +1336,24 @@ textarea {
 .standup-day-header h2 {
   margin-top: 2px;
   font-size: 20px;
+}
+.ticket-count {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ticket-count-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ticket-count input {
+  width: 72px;
+  min-height: 32px;
+  padding: 4px 8px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 .standup-day-footer {
   display: flex;

@@ -10,6 +10,7 @@ import { meetingWhen } from '../lib/meetings'
 import { isOpenPayment, paymentStatus, summarizePayments } from '../lib/payments'
 import { currentSprint, progressLabel, sprintProgress } from '../lib/sprints'
 import { OPEN_PROJECT_STATUSES, PROJECT_STATUS, PROJECT_STATUSES } from '../lib/status'
+import { summarizeClientTickets, type ClientTickets } from '../lib/tickets'
 import type { Project, ProjectStatus } from '../lib/types'
 import { useAsync } from '../lib/useAsync'
 import { ProjectFormModal } from './ProjectFormModal'
@@ -89,6 +90,7 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
   const standupsDone = active.filter((r) => r.lastStandup === today).length
   const runningSprints = rows.filter((r) => r.sprint).length
   const overdueCount = rows.reduce((n, r) => n + r.payments.overdueCount, 0)
+  const clientTickets = summarizeClientTickets(data.projects, data.ticketCounts, today)
 
   const projectById = new Map(rows.map((r) => [r.project.id, r.project]))
   const horizon = toISODate(addDays(new Date(), UPCOMING_DAYS))
@@ -140,6 +142,8 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
           hint={overdueCount ? 'Needs follow-up' : 'All on track'}
         />
       </div>
+
+      {clientTickets.length > 0 && <TicketsByClient clients={clientTickets} />}
 
       <div className="dash-panels">
         <section className="card">
@@ -285,6 +289,39 @@ function DashboardContent({ data, today, onCreate }: DashboardContentProps) {
         </div>
       )}
     </>
+  )
+}
+
+function TicketsByClient({ clients }: { clients: ClientTickets[] }) {
+  return (
+    <section className="card">
+      <h2 className="card-title">Tickets completed by client</h2>
+      <ul className="client-tickets">
+        {clients.map((c) => {
+          const projects = c.projects.join(', ')
+          return (
+            <li key={c.key}>
+              <div className="client-tickets-name truncate" title={c.client}>
+                {c.client}
+              </div>
+              <div className="muted small truncate" title={projects}>
+                {projects}
+              </div>
+              <dl>
+                <div>
+                  <dt>Today</dt>
+                  <dd>{c.today}</dd>
+                </div>
+                <div>
+                  <dt>Last 7 days</dt>
+                  <dd>{c.week}</dd>
+                </div>
+              </dl>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
 

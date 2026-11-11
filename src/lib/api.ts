@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { ticketWindowStart } from './tickets'
 import type {
   Meeting,
   MeetingInput,
@@ -12,6 +13,8 @@ import type {
   SprintInput,
   Standup,
   StandupDate,
+  TicketCount,
+  TicketTally,
 } from './types'
 
 interface Result {
@@ -204,6 +207,28 @@ export async function deleteMeeting(id: string) {
   unwrap(await supabase.from('meetings').delete().eq('id', id))
 }
 
+// Ticket counts --------------------------------------------------------------
+
+export async function getTicketCount(projectId: string, date: string) {
+  return unwrap<TicketCount | null>(
+    await supabase.from('ticket_counts').select('*').eq('project_id', projectId).eq('date', date).maybeSingle(),
+  )
+}
+
+export async function saveTicketCount(projectId: string, date: string, completed: number) {
+  return unwrap<TicketCount>(
+    await supabase
+      .from('ticket_counts')
+      .upsert({ project_id: projectId, date, completed }, { onConflict: 'project_id,date' })
+      .select()
+      .single(),
+  )
+}
+
+export async function deleteTicketCount(id: string) {
+  unwrap(await supabase.from('ticket_counts').delete().eq('id', id))
+}
+
 // Dashboard ------------------------------------------------------------------
 
 export interface DashboardData {
@@ -214,10 +239,12 @@ export interface DashboardData {
   standups: Pick<Standup, 'project_id' | 'date'>[]
   /** Meetings from `today` on, in date and time order. */
   meetings: MeetingSummary[]
+  /** Tickets completed in the last 7 days, across all projects. */
+  ticketCounts: TicketTally[]
 }
 
 export async function loadDashboard(since: string, today: string): Promise<DashboardData> {
-  const [projects, sprints, payments, standups, meetings] = await Promise.all([
+  const [projects, sprints, payments, standups, meetings, ticketCounts] = await Promise.all([
     listProjects(),
     supabase.from('sprints').select('*').then(unwrap<Sprint[]>),
     supabase.from('payments').select('*').order('due_date').then(unwrap<Payment[]>),
@@ -234,6 +261,12 @@ export async function loadDashboard(since: string, today: string): Promise<Dashb
       .order('start_time', { nullsFirst: true })
       .order('created_at')
       .then(unwrap<MeetingSummary[]>),
+    supabase
+      .from('ticket_counts')
+      .select('project_id, date, completed')
+      .gte('date', ticketWindowStart(today))
+      .lte('date', today)
+      .then(unwrap<TicketTally[]>),
   ])
-  return { projects, sprints, payments, standups, meetings }
+  return { projects, sprints, payments, standups, meetings, ticketCounts }
 }

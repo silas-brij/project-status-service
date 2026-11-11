@@ -29,7 +29,8 @@ A small web app for keeping several projects under control, built with **React +
 - **Payment timeline**: deposits, milestones and invoices on a timeline with a "today" marker.
   - Statuses: pending, invoiced, paid or cancelled. Overdue is detected automatically.
   - Totals for received, outstanding and overdue, and a comparison against the budget.
-- **Dashboard**: which projects still need today's stand-up, meetings in the next 7 days, payments due in the next 30 days, and a card per project. It shows open projects (not completed, cancelled or archived) by default.
+- **Tickets completed**: enter how many tickets a project completed on the stand-up page, one number per day. It saves by itself when you leave the field or press Enter.
+- **Dashboard**: tickets completed per client (today and the last 7 days, which include today), which projects still need today's stand-up, meetings in the next 7 days, payments due in the next 30 days, and a card per project. It shows open projects (not completed, cancelled or archived) by default.
 
 Each user only ever sees their own data. Row Level Security in Postgres enforces this.
 
@@ -43,6 +44,7 @@ Each user only ever sees their own data. Row Level Security in Postgres enforces
    2. [`supabase/migrations/20261013120000_meetings.sql`](supabase/migrations/20261013120000_meetings.sql)
    3. [`supabase/migrations/20261014000000_html_notes.sql`](supabase/migrations/20261014000000_html_notes.sql)
    4. [`supabase/migrations/20261022000000_project_statuses.sql`](supabase/migrations/20261022000000_project_statuses.sql)
+   5. [`supabase/migrations/20261111000000_ticket_counts.sql`](supabase/migrations/20261111000000_ticket_counts.sql)
 
    Paste each file's contents and click **Run**. Files you already ran don't need to run again.
    (With the Supabase CLI, `supabase link` + `supabase db push` does the same.)
@@ -94,8 +96,9 @@ The app is a static single-page app. Set the two `VITE_…` variables in your ho
 | `meetings` | `project_id`, `title`, `date`, `start_time`, `end_time`, `location`, `attendees`, `notes`, `notes_format` (`markdown` or `html`). Several per day |
 | `sprints`  | `project_id`, `name`, `goal`, `start_date`, `end_date`, `status`, `notes` (Markdown)        |
 | `payments` | `project_id`, `title`, `amount`, `due_date`, `status`, `paid_date`, `notes`                 |
+| `ticket_counts` | `project_id`, `date`, `completed`. Unique per `(project_id, date)`                     |
 
-Deleting a project deletes its stand-ups, meetings, sprints and payments. Amounts use the project's currency.
+Deleting a project deletes its stand-ups, meetings, sprints, payments and ticket counts. Amounts use the project's currency.
 
 ## Project structure
 
@@ -110,6 +113,7 @@ src/
     meetings.ts    Meeting template, times, attendees, Markdown export
     sprints.ts     Sprint progress helpers
     payments.ts    Overdue detection + totals
+    tickets.ts     Tickets completed per client
   pages/
     DashboardPage.tsx
     ProjectFormModal.tsx
