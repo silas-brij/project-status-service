@@ -11,7 +11,7 @@ import {
 } from 'date-fns'
 import { cx, toISODate, todayISO } from '../lib/format'
 
-const WEEK_STARTS_ON = 1 // Monday
+const WEEK_STARTS_ON = 0 // Sunday
 
 export interface CalendarRange {
   start: string
